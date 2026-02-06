@@ -1,0 +1,40 @@
+# Core LangChain/LangGraph
+langchain>=0.1.0
+langchain-google-genai>=1.0.0
+langgraph>=0.0.40
+langchain-core>=0.1.0
+
+# Vector Database
+# Note: ChromaDB may have issues with Python 3.14
+# Try: pip install chromadb --no-deps, then install dependencies manually
+# Or use FAISS: pip install faiss-cpu langchain-community
+chromadb>=0.4.22
+
+# LLM Provider
+google-generativeai>=0.3.0
+
+# Document Processing
+pypdf>=3.17.0
+python-docx>=1.1.0
+
+# Embeddings
+sentence-transformers>=2.3.0
+
+# Web Framework
+streamlit>=1.29.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+typing-extensions>=4.8.0
+
+# Market Data APIs
+yfinance>=0.2.32
+requests>=2.31.0
+
+# Math/Calculations
+numpy>=1.26.0
+pandas>=2.1.0
+
+# Caching
+cachetools>=5.3.0

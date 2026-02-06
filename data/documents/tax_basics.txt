@@ -1,0 +1,44 @@
+INDIAN TAX BASICS - KEY SECTIONS AND DEDUCTIONS
+
+Section 80C - Tax Deductions (Up to ₹1.5 Lakh)
+- ELSS (Equity Linked Savings Scheme): Invest in mutual funds, lock-in 3 years
+- PPF (Public Provident Fund): Long-term savings, 15-year lock-in, tax-free returns
+- Tax-saving Fixed Deposits: 5-year lock-in, interest taxable
+- NSC (National Savings Certificate): 5-year tenure, interest taxable
+- Life Insurance Premium: Premiums paid for life insurance policies
+- Principal repayment of home loan: Principal component of EMI
+- Sukanya Samriddhi Yojana: For girl child, 21-year lock-in
+
+Section 80D - Health Insurance Premium
+- Self, spouse, children: Up to ₹25,000
+- Parents (below 60): Additional ₹25,000
+- Parents (above 60): Additional ₹50,000
+- Total deduction possible: Up to ₹1 lakh
+
+Section 24(b) - Home Loan Interest Deduction
+- Self-occupied property: Up to ₹2 lakh interest deduction
+- Let-out property: No upper limit on interest deduction
+- Principal repayment eligible under Section 80C
+
+Section 80G - Donations
+- Donations to specified funds: 50% or 100% deduction
+- Examples: Prime Minister's Relief Fund, approved charities
+
+HRA (House Rent Allowance) Exemption
+- Minimum of: Actual HRA received, Rent paid minus 10% of salary, 50% of salary (metro) or 40% (non-metro)
+- Requires rent receipts and PAN of landlord if rent > ₹1 lakh/year
+
+Standard Deduction
+- ₹50,000 for salaried individuals (from FY 2023-24)
+
+Long Term Capital Gains (LTCG)
+- Equity: 10% tax on gains above ₹1 lakh (holding > 1 year)
+- Debt: 20% with indexation (holding > 3 years)
+- Gold: 20% with indexation (holding > 3 years)
+
+Tax Slabs (FY 2024-25)
+- Up to ₹3 lakh: Nil
+- ₹3-7 lakh: 5%
+- ₹7-12 lakh: 10%
+- ₹12-15 lakh: 15%
+- Above ₹15 lakh: 30%

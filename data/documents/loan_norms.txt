@@ -1,0 +1,56 @@
+LOAN NORMS AND AFFORDABILITY GUIDELINES
+
+Home Loan Eligibility
+- Loan amount: Usually 80-90% of property value
+- Down payment: 10-20% of property value required
+- EMI affordability: Should not exceed 40-50% of monthly income
+- Example: If monthly income is ₹1.5 lakh, maximum EMI should be ₹60,000-75,000
+
+EMI Calculation Formula
+- EMI = [P × R × (1+R)^N] / [(1+R)^N - 1]
+- P = Principal loan amount
+- R = Monthly interest rate (annual rate / 12 / 100)
+- N = Loan tenure in months
+- Example: ₹50 lakh loan at 8.5% for 20 years = EMI ~₹43,000
+
+Loan-to-Value (LTV) Ratio
+- For property value up to ₹30 lakh: Up to 90% LTV
+- For property value ₹30-75 lakh: Up to 80% LTV
+- For property value above ₹75 lakh: Up to 75% LTV
+
+Interest Rates (Approximate)
+- Home loan: 8.5-9.5% (varies by bank and credit score)
+- Personal loan: 10-24% (high interest, avoid if possible)
+- Car loan: 8-12%
+- Education loan: 7-12%
+
+Loan Tenure
+- Home loan: Up to 30 years (longer tenure = lower EMI but higher total interest)
+- Personal loan: 1-5 years
+- Car loan: 1-7 years
+- Education loan: Up to 15 years (including moratorium period)
+
+Prepayment and Foreclosure
+- Most banks allow prepayment with minimal charges
+- Prepaying reduces total interest burden
+- Consider prepayment if you have surplus funds and no better investment options
+
+Credit Score Impact
+- Good credit score (750+): Better interest rates, higher loan approval
+- Maintain: Timely EMI payments, low credit utilization, long credit history
+
+Tax Benefits on Home Loan
+- Interest deduction: Up to ₹2 lakh under Section 24(b)
+- Principal repayment: Up to ₹1.5 lakh under Section 80C
+- Total possible deduction: Up to ₹3.5 lakh per year
+
+Affordability Check
+- Total EMI (all loans): Should not exceed 50% of monthly income
+- After EMI, should have enough for expenses and savings
+- Factor in: Property maintenance, insurance, property tax
+
+Loan Documentation
+- Income proof: Salary slips, ITR, bank statements
+- Property documents: Sale deed, title clearance
+- Identity proof: Aadhaar, PAN
+- Address proof: Utility bills, rental agreement
