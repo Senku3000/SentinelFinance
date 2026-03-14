@@ -44,7 +44,7 @@ class VectorDBTool(BaseTool):
             )
             
             # Try to load existing FAISS index
-            faiss_path = Path(Config.CHROMA_DB_PATH) / "faiss_index"
+            faiss_path = Path(Config.VECTOR_DB_PATH) / "faiss_index"
             
             if faiss_path.exists():
                 try:

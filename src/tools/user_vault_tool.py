@@ -4,6 +4,7 @@ import json
 import threading
 from typing import Dict, Any, Optional
 from pathlib import Path
+from datetime import datetime
 from langchain_core.tools import BaseTool
 from pydantic import Field, ConfigDict
 
@@ -153,7 +154,7 @@ class UserVaultTool(BaseTool):
                     else:
                         profile[key] = value
                 
-                profile["updated_at"] = str(Path(__file__).stat().st_mtime)  # Simple timestamp
+                profile["updated_at"] = datetime.now().isoformat()
                 
                 if self._save_profile(user_id, profile):
                     return {

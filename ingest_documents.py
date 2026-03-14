@@ -7,7 +7,7 @@ from src.config import Config
 if __name__ == "__main__":
     print("Starting document ingestion...")
     print(f"Documents path: {Config.DOCUMENTS_PATH}")
-    print(f"Vector DB path: {Config.CHROMA_DB_PATH}")
+    print(f"Vector DB path: {Config.VECTOR_DB_PATH}")
     print()
     
     embedder = DocumentEmbedder()

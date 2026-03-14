@@ -6,7 +6,7 @@
 
 1. **Open the project in VS Code**
    ```bash
-   code /Users/sreeshanthryali/Documents/VS_code/Python/fin_adviser
+   code /Users/sreeshanthryali/Documents/VS_code/fin_adviser
    ```
 
 2. **Select Python Interpreter**

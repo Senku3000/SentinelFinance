@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from langchain_core.tools import BaseTool
 from pydantic import Field
 import yfinance as yf
-import requests
 from cachetools import TTLCache
 
 from ..config import Config

@@ -30,19 +30,18 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Step 4: Get Gemini API Key
+### Step 4: Get Groq API Key
 
-1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with your Google account
-3. Click "Create API Key"
-4. Copy the key
+1. Create a Groq API key in the Groq console
+2. Copy the key
 
 ### Step 5: Create .env File
 
 Create a `.env` file in the project root:
 
 ```env
-GOOGLE_API_KEY=your_actual_api_key_here
+GROQ_API_KEY=your_actual_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
 ### Step 6: Ingest Documents
@@ -61,10 +60,10 @@ streamlit run app.py
 
 ## Troubleshooting
 
-### "GOOGLE_API_KEY is required" Error
+### "GROQ_API_KEY is required" Error
 
 - Make sure you created a `.env` file in the project root
-- Check that the file contains `GOOGLE_API_KEY=your_key`
+- Check that the file contains `GROQ_API_KEY=your_key`
 - Restart the app after creating/editing `.env`
 
 ### "Vector database not initialized" Warning
@@ -78,7 +77,7 @@ streamlit run app.py
 - Run `pip install -r requirements.txt` again
 - Check Python version is 3.11+
 
-### ChromaDB Errors
+### FAISS Errors
 
 - Delete `data/chroma_db/` folder and re-run ingestion
 - Check disk space

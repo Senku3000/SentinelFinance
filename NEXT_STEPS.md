@@ -8,23 +8,11 @@
 
 ## 🔧 What's Left
 
-### 1. Install ChromaDB (if needed)
-ChromaDB had issues with Python 3.14. Try:
-```bash
-source venv/bin/activate
-python3 -m pip install chromadb --no-deps
-python3 -m pip install fastapi uvicorn posthog
-```
+### 1. Get Your Groq API Key
+1. Create a Groq API key in the Groq console
+2. Copy the key
 
-**OR** if that doesn't work, we can modify the code to use FAISS instead (simpler, no dependencies).
-
-### 2. Get Your Gemini API Key
-1. Go to: https://makersuite.google.com/app/apikey
-2. Sign in with Google
-3. Click "Create API Key"
-4. Copy the key
-
-### 3. Create .env File
+### 2. Create .env File
 ```bash
 # In the project root, create .env file
 touch .env
@@ -32,10 +20,11 @@ touch .env
 
 Then edit it and add:
 ```env
-GOOGLE_API_KEY=your_actual_api_key_here
+GROQ_API_KEY=your_actual_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-### 4. Ingest Documents
+### 3. Ingest Documents
 ```bash
 source venv/bin/activate
 python ingest_documents.py
@@ -43,7 +32,7 @@ python ingest_documents.py
 
 This will process the 3 starter documents (tax_basics.txt, investment_principles.txt, loan_norms.txt) and make them searchable.
 
-### 5. Run the App!
+### 4. Run the App!
 ```bash
 source venv/bin/activate
 streamlit run app.py
@@ -62,7 +51,7 @@ Once running, try asking:
 
 **Every time you open a new terminal:**
 ```bash
-cd /Users/sreeshanthryali/Documents/VS_code/Python/fin_adviser
+cd /Users/sreeshanthryali/Documents/VS_code/fin_adviser
 source venv/bin/activate
 ```
 

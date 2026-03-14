@@ -45,21 +45,20 @@ touch .env
 Add your configuration:
 
 ```env
-# Required: Google Gemini API Key
-GOOGLE_API_KEY=your_gemini_api_key_here
+# Required: Groq API Key
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 
 # Optional: Other settings (defaults are fine for MVP)
-CHROMA_DB_PATH=./data/chroma_db
-CHROMA_COLLECTION_NAME=financial_knowledge
+VECTOR_DB_PATH=./data/chroma_db
 USER_VAULT_PATH=./data/user_profiles
 DEFAULT_USER_ID=default_user
 MAX_ITERATIONS=10
 ```
 
-**Get Gemini API Key:**
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create a new API key
-3. Copy it to your `.env` file
+**Get Groq API Key:**
+1. Create a Groq API key in the Groq console
+2. Copy it to your `.env` file
 
 ### 3. Ingest Documents
 
@@ -71,7 +70,7 @@ python ingest_documents.py
 
 This will:
 - Process all PDF/text files in `data/documents/`
-- Create embeddings and store in ChromaDB
+- Create embeddings and store in FAISS
 - Make documents searchable for the RAG system
 
 **Adding More Documents:**
@@ -111,7 +110,7 @@ fin_adviser/
 ├── data/                  # Data storage
 │   ├── documents/         # Source documents
 │   ├── user_profiles/     # User data
-│   └── chroma_db/         # Vector database
+│   └── chroma_db/         # Vector database (FAISS)
 └── requirements.txt       # Dependencies
 ```
 
@@ -128,8 +127,8 @@ fin_adviser/
 
 - **Python**: 3.11+
 - **Framework**: LangGraph + LangChain
-- **LLM**: Google Gemini
-- **Vector DB**: ChromaDB
+- **LLM**: Groq (Llama)
+- **Vector DB**: FAISS
 - **UI**: Streamlit
 
 ## License

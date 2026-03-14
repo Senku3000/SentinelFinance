@@ -48,10 +48,6 @@ class MathTool(BaseTool):
         try:
             # Restricted execution - only allow safe operations
             # In production, use a more robust sandbox
-            allowed_modules = {
-                'math', 'numpy', 'pandas', '__builtins__'
-            }
-            
             # Create restricted globals
             restricted_globals = {
                 '__builtins__': {
@@ -82,7 +78,10 @@ class MathTool(BaseTool):
                 # It's a statement, use exec
                 exec(code, restricted_globals, local_vars)
                 # Check both local_vars and restricted_globals for result
-                result = local_vars.get('result') or restricted_globals.get('result')
+                if 'result' in local_vars:
+                    result = local_vars['result']
+                else:
+                    result = restricted_globals.get('result')
             else:
                 # It's an expression, use eval
                 result = eval(code, restricted_globals, {})

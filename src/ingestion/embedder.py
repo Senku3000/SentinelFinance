@@ -25,7 +25,7 @@ class DocumentEmbedder:
     
     def _initialize_vectorstore(self):
         """Initialize FAISS vectorstore"""
-        faiss_path = Path(Config.CHROMA_DB_PATH) / "faiss_index"
+        faiss_path = Path(Config.VECTOR_DB_PATH) / "faiss_index"
         
         try:
             # Try to load existing index
@@ -48,7 +48,7 @@ class DocumentEmbedder:
     def _save_vectorstore(self):
         """Save FAISS index to disk"""
         if self.vectorstore:
-            faiss_path = Path(Config.CHROMA_DB_PATH) / "faiss_index"
+            faiss_path = Path(Config.VECTOR_DB_PATH) / "faiss_index"
             faiss_path.mkdir(parents=True, exist_ok=True)
             self.vectorstore.save_local(str(faiss_path))
     

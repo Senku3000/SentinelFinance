@@ -16,8 +16,9 @@ class Config:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     
-    # ChromaDB Settings
-    CHROMA_DB_PATH: str = os.getenv("CHROMA_DB_PATH", "./data/chroma_db")
+    # Vector DB Settings (FAISS)
+    VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", os.getenv("CHROMA_DB_PATH", "./data/chroma_db"))
+    # Legacy/unused in FAISS; kept for backward compatibility
     CHROMA_COLLECTION_NAME: str = os.getenv("CHROMA_COLLECTION_NAME", "financial_knowledge")
     
     # Market Data APIs

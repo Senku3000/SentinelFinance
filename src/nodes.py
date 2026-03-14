@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
@@ -18,6 +18,41 @@ llm = ChatGroq(
     groq_api_key=Config.GROQ_API_KEY,
     temperature=0.3
 )
+
+def _extract_json_payload(text: str) -> Optional[str]:
+    """Extract the first JSON object or array from text using bracket balancing."""
+    if not text:
+        return None
+    start_obj = text.find("{")
+    start_arr = text.find("[")
+    if start_obj == -1 and start_arr == -1:
+        return None
+    if start_obj == -1 or (start_arr != -1 and start_arr < start_obj):
+        start = start_arr
+        open_ch, close_ch = "[", "]"
+    else:
+        start = start_obj
+        open_ch, close_ch = "{", "}"
+    depth = 0
+    for i in range(start, len(text)):
+        ch = text[i]
+        if ch == open_ch:
+            depth += 1
+        elif ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+def _load_json_from_text(text: str) -> Optional[Any]:
+    """Best-effort JSON parsing from model output."""
+    payload = _extract_json_payload(text)
+    if not payload:
+        return None
+    try:
+        return json.loads(payload)
+    except Exception:
+        return None
 
 
 def router_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
@@ -47,6 +82,7 @@ Respond in JSON format:
     "needs_research": true/false,
     "needs_calculation": true/false,
     "needs_user_profile": true/false,
+    "needs_clarification": true/false,
     "reasoning": "brief explanation",
     "query_type": "tax_planning/investment/loan/retirement/etc"
 }}"""),
@@ -61,12 +97,8 @@ Respond in JSON format:
         # Parse response (simple extraction - could be improved)
         response_text = response.content
         
-        # Extract JSON from response
-        # Try to find JSON in response
-        json_match = re.search(r'\{[^{}]*\}', response_text, re.DOTALL)
-        if json_match:
-            intent_data = json.loads(json_match.group())
-        else:
+        intent_data = _load_json_from_text(response_text)
+        if not isinstance(intent_data, dict):
             # Fallback: infer from response text
             intent_data = {
                 "needs_research": "research" in response_text.lower() or "knowledge" in response_text.lower(),
@@ -81,9 +113,12 @@ Respond in JSON format:
         state["needs_research"] = intent_data.get("needs_research", False)
         state["needs_calculation"] = intent_data.get("needs_calculation", False)
         state["needs_user_profile"] = intent_data.get("needs_user_profile", False)
+        state["needs_clarification"] = intent_data.get("needs_clarification", False)
         
         # Determine next node
-        if state["needs_research"]:
+        if state.get("needs_clarification"):
+            state["next_node"] = "clarifier"
+        elif state["needs_research"]:
             state["next_node"] = "researcher"
         elif state["needs_calculation"]:
             state["next_node"] = "analyst"
@@ -142,9 +177,9 @@ Format as JSON array:
         response = llm.invoke(messages)
         
         # Parse hypotheses (simplified)
-        json_match = re.search(r'\[[^\]]*\]', response.content, re.DOTALL)
-        if json_match:
-            hypotheses = json.loads(json_match.group())
+        parsed = _load_json_from_text(response.content)
+        if isinstance(parsed, list):
+            hypotheses = parsed
         else:
             # Fallback: create simple hypothesis
             hypotheses = [{
@@ -169,6 +204,9 @@ Format as JSON array:
                     "operation": "get_profile",
                     "output": profile_result
                 })
+        elif state.get("user_profile"):
+            # Profile already present (e.g., from UI)
+            state["needs_user_profile"] = False
         
         # Step 3: Retrieve from vector DB
         research_results = []
@@ -179,7 +217,9 @@ Format as JSON array:
                 db_result = vector_db_tool._run(search_query, k=3)
                 
                 if db_result.get("success"):
-                    research_results.extend(db_result["results"])
+                    for item in db_result["results"]:
+                        item["retrieval_type"] = "general_finance"
+                        research_results.append(item)
                     state["document_scores"].extend([
                         {"score": score, "source": "vector_db"}
                         for score in db_result.get("scores", [])
@@ -214,7 +254,7 @@ Format as JSON array:
         if state["needs_calculation"]:
             state["next_node"] = "analyst"
         else:
-            state["next_node"] = "strategist"
+            state["next_node"] = "evidence_scorer"
         
     except Exception as e:
         state["errors"].append(f"Researcher error: {str(e)}")
@@ -278,10 +318,8 @@ Respond with JSON:
         response = llm.invoke(messages)
         
         # Parse calculations needed
-        json_match = re.search(r'\{[^{}]*"calculations"[^{}]*\}', response.content, re.DOTALL)
-        
-        if json_match:
-            calc_data = json.loads(json_match.group())
+        calc_data = _load_json_from_text(response.content)
+        if isinstance(calc_data, dict):
             calculations = calc_data.get("calculations", [])
         else:
             # Fallback: try to extract Python code from response
@@ -346,6 +384,159 @@ Respond with JSON:
     return state
 
 
+def clarifier_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
+    """
+    Clarifier node: asks targeted questions when critical info is missing
+    """
+    state["current_node"] = "clarifier"
+    
+    user_query = state["user_query"]
+    user_profile = state.get("user_profile") or {}
+    intent = state.get("intent") or {}
+    
+    clarifier_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a financial clarification agent. Ask 1-3 short questions
+only if critical information is missing. Avoid asking for info already present.
+
+Return JSON:
+{{
+  "needs_clarification": true/false,
+  "questions": ["question1", "question2", "question3"],
+  "missing_fields": ["field1","field2"]
+}}"""),
+        ("human", """User query: {query}
+
+Intent: {intent}
+User profile: {profile}
+""")
+    ])
+    
+    try:
+        profile_str = json.dumps(user_profile, indent=2) if user_profile else "Not available"
+        messages = clarifier_prompt.format_messages(
+            query=user_query,
+            intent=json.dumps(intent),
+            profile=profile_str
+        )
+        response = llm.invoke(messages)
+        parsed = _load_json_from_text(response.content)
+        
+        if isinstance(parsed, dict):
+            needs_clarification = bool(parsed.get("needs_clarification"))
+            questions = parsed.get("questions", []) or []
+            missing_fields = parsed.get("missing_fields", []) or []
+        else:
+            needs_clarification = False
+            questions = []
+            missing_fields = []
+        
+        asked = set(q.strip().lower() for q in state.get("asked_clarifications", []))
+        profile = state.get("user_profile") or {}
+        income_val = (profile.get("income") or {}).get("monthly", 0)
+        expense_val = (profile.get("expenses") or {}).get("monthly", 0)
+        risk_val = profile.get("risk_tolerance")
+        goals_val = profile.get("goals") or []
+        
+        def _is_redundant(q: str) -> bool:
+            ql = q.lower()
+            if income_val and any(k in ql for k in ["income", "salary", "earn"]):
+                return True
+            if expense_val and any(k in ql for k in ["expense", "spend"]):
+                return True
+            if risk_val and "risk" in ql:
+                return True
+            if goals_val and "goal" in ql:
+                return True
+            return False
+        filtered_questions = []
+        for q in questions:
+            q_norm = q.strip().lower()
+            if q_norm and q_norm not in asked and not _is_redundant(q_norm):
+                filtered_questions.append(q)
+        
+        state["needs_clarification"] = needs_clarification
+        state["clarification_questions"] = filtered_questions[:3]
+        state["asked_clarifications"].extend(filtered_questions[:3])
+        
+        if needs_clarification and filtered_questions:
+            state["final_recommendation"] = (
+                "I need a bit more information to answer accurately:\n- "
+                + "\n- ".join(filtered_questions[:3])
+            )
+            state["next_node"] = "end"
+        else:
+            state["next_node"] = "strategist"
+        
+        if missing_fields:
+            state["assumptions"].append(
+                f"Missing fields for analysis: {', '.join(missing_fields)}"
+            )
+        
+        state["tool_calls"].append({
+            "node": "clarifier",
+            "tool": "clarifier_prompt",
+            "output": {
+                "needs_clarification": needs_clarification,
+                "questions": questions[:3],
+                "missing_fields": missing_fields
+            }
+        })
+        
+    except Exception as e:
+        state["errors"].append(f"Clarifier error: {str(e)}")
+        state["next_node"] = "router"
+    
+    return state
+
+
+def evidence_scorer_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
+    """
+    Evidence scorer: rates quality/coverage of retrieved evidence
+    """
+    state["current_node"] = "evidence_scorer"
+    
+    research_results = state.get("research_results", [])
+    scores = [s.get("score", 0.0) for s in state.get("document_scores", [])]
+    
+    if not research_results:
+        state["evidence_score"] = 0.0
+        state["evidence_quality"] = "low"
+        state["needs_clarification"] = True
+        state["clarification_questions"] = [
+            "I couldn't find enough relevant information. Can you provide more details or context?"
+        ]
+        state["next_node"] = "clarifier"
+        return state
+    
+    # Simple heuristic: lower FAISS distance score is better, so invert for quality.
+    if scores:
+        avg_score = sum(scores) / len(scores)
+        evidence_score = max(0.0, min(1.0, 1.0 / (1.0 + avg_score)))
+    else:
+        evidence_score = 0.4
+    
+    if evidence_score >= 0.7:
+        quality = "high"
+    elif evidence_score >= 0.4:
+        quality = "medium"
+    else:
+        quality = "low"
+    
+    state["evidence_score"] = evidence_score
+    state["evidence_quality"] = quality
+    
+    if quality == "low":
+        state["needs_clarification"] = True
+        state["clarification_questions"] = [
+            "I need a bit more detail to answer accurately (e.g., amounts, tenure, risk level)."
+        ]
+        state["next_node"] = "clarifier"
+    else:
+        state["next_node"] = "strategist"
+    
+    return state
+
+
 def strategist_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     """
     Strategist node: Synthesizes information and generates recommendations
@@ -357,6 +548,8 @@ def strategist_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     research_results = state.get("research_results", [])
     calculations = state.get("calculations", [])
     market_data = state.get("market_data", {})
+    assumptions = state.get("assumptions", [])
+    evidence_quality = state.get("evidence_quality", "low")
     
     # Synthesis prompt
     synthesis_prompt = ChatPromptTemplate.from_messages([
@@ -389,6 +582,12 @@ Calculations:
 Market Data:
 {market_data}
 
+Assumptions:
+{assumptions}
+
+Evidence Quality:
+{evidence_quality}
+
 Provide your financial recommendation:""")
     ])
     
@@ -413,7 +612,9 @@ Provide your financial recommendation:""")
             profile=profile_str,
             research=research_str,
             calculations=calc_str,
-            market_data=market_str
+            market_data=market_str,
+            assumptions="\n".join(f"- {a}" for a in assumptions) if assumptions else "None",
+            evidence_quality=evidence_quality
         )
         
         response = llm.invoke(messages)
@@ -468,5 +669,9 @@ def should_continue(state: FinancialAdvisoryState) -> str:
         return "analyst"
     elif next_node == "strategist":
         return "strategist"
+    elif next_node == "clarifier":
+        return "clarifier"
+    elif next_node == "evidence_scorer":
+        return "evidence_scorer"
     else:
         return "end"

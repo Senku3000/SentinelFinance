@@ -5,7 +5,15 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from .state import FinancialAdvisoryState, create_initial_state
-from .nodes import router_node, researcher_node, analyst_node, strategist_node, should_continue
+from .nodes import (
+    router_node,
+    researcher_node,
+    analyst_node,
+    strategist_node,
+    clarifier_node,
+    evidence_scorer_node,
+    should_continue,
+)
 from .config import Config
 
 
@@ -18,7 +26,9 @@ def create_financial_advisory_graph() -> StateGraph:
     
     # Add nodes
     workflow.add_node("router", router_node)
+    workflow.add_node("clarifier", clarifier_node)
     workflow.add_node("researcher", researcher_node)
+    workflow.add_node("evidence_scorer", evidence_scorer_node)
     workflow.add_node("analyst", analyst_node)
     workflow.add_node("strategist", strategist_node)
     
@@ -30,6 +40,7 @@ def create_financial_advisory_graph() -> StateGraph:
         "router",
         should_continue,
         {
+            "clarifier": "clarifier",
             "researcher": "researcher",
             "analyst": "analyst",
             "strategist": "strategist",
@@ -38,10 +49,31 @@ def create_financial_advisory_graph() -> StateGraph:
     )
     
     workflow.add_conditional_edges(
+        "clarifier",
+        should_continue,
+        {
+            "router": "router",
+            "end": END
+        }
+    )
+    
+    workflow.add_conditional_edges(
         "researcher",
         should_continue,
         {
+            "evidence_scorer": "evidence_scorer",
             "researcher": "researcher",
+            "analyst": "analyst",
+            "strategist": "strategist",
+            "end": END
+        }
+    )
+    
+    workflow.add_conditional_edges(
+        "evidence_scorer",
+        should_continue,
+        {
+            "clarifier": "clarifier",
             "analyst": "analyst",
             "strategist": "strategist",
             "end": END
@@ -77,7 +109,9 @@ def create_financial_advisory_graph() -> StateGraph:
 def run_query(
     query: str,
     user_id: str = "default_user",
-    config: dict = None
+    config: dict = None,
+    user_profile: dict = None,
+    asked_clarifications: list = None
 ) -> dict:
     """
     Run a financial query through the graph
@@ -97,7 +131,13 @@ def run_query(
     app = create_financial_advisory_graph()
     
     # Create initial state
-    initial_state = create_initial_state(query, user_id, Config.MAX_ITERATIONS)
+    initial_state = create_initial_state(
+        query,
+        user_id,
+        Config.MAX_ITERATIONS,
+        user_profile=user_profile,
+        asked_clarifications=asked_clarifications
+    )
     
     # Run graph
     config = config or {"configurable": {"thread_id": user_id}}
@@ -123,12 +163,21 @@ def run_query(
         
         state_data = final_state if final_state else {}
     
+    recommendation = state_data.get("final_recommendation")
+    if not recommendation:
+        questions = state_data.get("clarification_questions") or []
+        if questions:
+            recommendation = "I need a bit more information:\n- " + "\n- ".join(questions[:3])
+        else:
+            recommendation = "No recommendation generated"
     return {
         "query": query,
-        "recommendation": state_data.get("final_recommendation", "No recommendation generated"),
+        "recommendation": recommendation,
         "confidence": state_data.get("confidence_scores", {}).get("overall", 0.5),
         "calculations": state_data.get("calculations", []),
         "research_results": state_data.get("research_results", []),
+        "clarification_questions": state_data.get("clarification_questions", []),
+        "asked_clarifications": state_data.get("asked_clarifications", []),
         "errors": state_data.get("errors", []),
         "tool_calls": state_data.get("tool_calls", [])
     }

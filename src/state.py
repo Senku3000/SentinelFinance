@@ -17,12 +17,18 @@ class FinancialAdvisoryState(TypedDict):
     needs_research: bool
     needs_calculation: bool
     needs_user_profile: bool
+    needs_clarification: bool
+    clarification_questions: List[str]
+    assumptions: List[str]
+    asked_clarifications: List[str]
     
     # Research results
     hypotheses: List[Dict[str, Any]]  # Testable hypotheses
     research_results: List[Dict[str, Any]]  # Evidence from Vector DB
     market_data: Dict[str, Any]  # Real-time market data from Search Tool
     document_scores: List[Dict[str, float]]  # Relevance scores for documents
+    evidence_score: float  # Aggregate evidence quality score
+    evidence_quality: str  # low/medium/high
     
     # Calculations
     calculations: List[Dict[str, Any]]  # Results from Math Tool
@@ -57,7 +63,9 @@ class FinancialAdvisoryState(TypedDict):
 def create_initial_state(
     user_query: str,
     user_id: str = "default_user",
-    max_iterations: int = 10
+    max_iterations: int = 10,
+    user_profile: Optional[Dict[str, Any]] = None,
+    asked_clarifications: Optional[List[str]] = None
 ) -> FinancialAdvisoryState:
     """Create initial state for the graph"""
     return FinancialAdvisoryState(
@@ -67,13 +75,19 @@ def create_initial_state(
         needs_research=False,
         needs_calculation=False,
         needs_user_profile=False,
+        needs_clarification=False,
+        clarification_questions=[],
+        assumptions=[],
+        asked_clarifications=asked_clarifications or [],
         hypotheses=[],
         research_results=[],
         market_data={},
         document_scores=[],
+        evidence_score=0.0,
+        evidence_quality="low",
         calculations=[],
         calculation_formulas=[],
-        user_profile=None,
+        user_profile=user_profile,
         intermediate_analysis=None,
         confidence_scores={},
         constraints_violated=[],

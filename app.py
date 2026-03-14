@@ -1,10 +1,9 @@
-"""Streamlit UI for SentinelFinance"""
+"""Streamlit UI for Sentinel Finance"""
 
 import streamlit as st
 import json
 from pathlib import Path
 from typing import Dict, Any
-
 from src.graph import run_query
 from src.config import Config
 from src.tools.user_vault_tool import UserVaultTool
@@ -24,6 +23,19 @@ if "user_id" not in st.session_state:
     st.session_state.user_id = Config.DEFAULT_USER_ID
 if "user_profile" not in st.session_state:
     st.session_state.user_profile = None
+if "asked_clarifications" not in st.session_state:
+    st.session_state.asked_clarifications = []
+
+
+def _merge_profiles(defaults: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, Any]:
+    """Deep merge user profile data onto defaults."""
+    merged = defaults.copy()
+    for key, value in current.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_profiles(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
 
 
 def load_user_profile(user_id: str) -> Dict[str, Any]:
@@ -31,7 +43,8 @@ def load_user_profile(user_id: str) -> Dict[str, Any]:
     vault_tool = UserVaultTool()
     result = vault_tool._run("get_profile", user_id)
     if result.get("success"):
-        return result["profile"]
+        defaults = vault_tool._get_default_profile(user_id)
+        return _merge_profiles(defaults, result["profile"])
     return None
 
 
@@ -39,6 +52,46 @@ def save_user_profile(user_id: str, profile: Dict[str, Any]):
     """Save user profile"""
     vault_tool = UserVaultTool()
     vault_tool._run("update_profile", user_id, profile)
+
+def _parse_amount(text: str) -> int:
+    text = text.replace(",", "").strip()
+    try:
+        return int(float(text))
+    except Exception:
+        return 0
+
+def _apply_multiplier(value: float, suffix: str) -> int:
+    if not suffix:
+        return int(value)
+    s = suffix.lower()
+    if s == "l" or s == "lac" or s == "lakh":
+        return int(value * 100000)
+    if s == "k":
+        return int(value * 1000)
+    return int(value)
+
+def _update_profile_from_text(profile: Dict[str, Any], text: str) -> Dict[str, Any]:
+    """Best-effort extraction of income/expenses from user text."""
+    import re
+    updated = profile.copy()
+    updated.setdefault("income", {}).setdefault("monthly", 0)
+    updated.setdefault("expenses", {}).setdefault("monthly", 0)
+    
+    inc_match = re.search(r"(?:income|salary|earn)[^0-9]*([0-9]+(?:\\.[0-9]+)?)(\\s*[lk]|\\s*lakh|\\s*lac)?", text, re.I)
+    exp_match = re.search(r"(?:expense|spend|spending)[^0-9]*([0-9]+(?:\\.[0-9]+)?)(\\s*[lk]|\\s*lakh|\\s*lac)?", text, re.I)
+    
+    if inc_match:
+        val = float(inc_match.group(1))
+        suffix = (inc_match.group(2) or "").strip().lower().replace("lakh", "l").replace("lac", "l")
+        updated["income"]["monthly"] = _apply_multiplier(val, suffix)
+        updated["income"]["annual"] = updated["income"]["monthly"] * 12
+    
+    if exp_match:
+        val = float(exp_match.group(1))
+        suffix = (exp_match.group(2) or "").strip().lower().replace("lakh", "l").replace("lac", "l")
+        updated["expenses"]["monthly"] = _apply_multiplier(val, suffix)
+    
+    return updated
 
 
 def main():
@@ -67,10 +120,13 @@ def main():
         # Profile Editor
         st.header("Edit Profile")
         
+        vault_tool = UserVaultTool()
         if st.session_state.user_profile:
-            profile = st.session_state.user_profile.copy()
+            profile = _merge_profiles(
+                vault_tool._get_default_profile(user_id),
+                st.session_state.user_profile.copy()
+            )
         else:
-            vault_tool = UserVaultTool()
             profile = vault_tool._get_default_profile(user_id)
         
         # Income
@@ -103,6 +159,9 @@ def main():
             )
         )
         profile["risk_tolerance"] = risk_tolerance
+        
+        # Keep latest sidebar values in session (even if not saved)
+        st.session_state.user_profile = profile
         
         if st.button("Save Profile"):
             save_user_profile(user_id, profile)
@@ -170,9 +229,18 @@ def main():
                     Config.validate()
                     
                     # Run query through graph
+                    # Update profile from chat text if possible
+                    if st.session_state.user_profile:
+                        st.session_state.user_profile = _update_profile_from_text(
+                            st.session_state.user_profile,
+                            prompt
+                        )
+                    
                     result = run_query(
                         prompt,
-                        user_id=st.session_state.user_id
+                        user_id=st.session_state.user_id,
+                        user_profile=st.session_state.user_profile,
+                        asked_clarifications=st.session_state.asked_clarifications
                     )
                     
                     # Display recommendation
@@ -206,6 +274,16 @@ def main():
                             for error in errors:
                                 st.error(error)
                     
+                    # Show clarification questions if present
+                    clarifications = result.get("clarification_questions", [])
+                    if clarifications:
+                        with st.expander(" Clarifications Needed"):
+                            for q in clarifications:
+                                st.info(q)
+                    
+                    # Persist asked clarifications across turns
+                    st.session_state.asked_clarifications = result.get("asked_clarifications", [])
+                    
                     # Add assistant message
                     st.session_state.messages.append({
                         "role": "assistant",
@@ -216,7 +294,7 @@ def main():
                 except ValueError as e:
                     error_msg = f"Configuration error: {str(e)}"
                     st.error(error_msg)
-                    st.info("Please set your GOOGLE_API_KEY in the .env file")
+                    st.info("Please set your GROQ_API_KEY in the .env file")
                     st.session_state.messages.append({
                         "role": "assistant",
                         "content": error_msg

@@ -4,7 +4,7 @@
 
 ```bash
 # Navigate to project directory (if not already there)
-cd /Users/sreeshanthryali/Documents/VS_code/Python/fin_adviser
+cd /Users/sreeshanthryali/Documents/VS_code/fin_adviser
 
 # Create virtual environment
 python3 -m venv venv
@@ -32,7 +32,7 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-This will install all required packages (LangGraph, ChromaDB, Streamlit, etc.)
+This will install all required packages (LangGraph, FAISS, Streamlit, etc.)
 
 ## 4. Set Up Environment Variables
 
@@ -45,14 +45,13 @@ touch .env
 
 Then edit it and add:
 ```env
-GOOGLE_API_KEY=your_gemini_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-**Get your Gemini API key:**
-1. Go to https://makersuite.google.com/app/apikey
-2. Sign in with Google
-3. Click "Create API Key"
-4. Copy and paste it into your `.env` file
+**Get your Groq API key:**
+1. Create a Groq API key in the Groq console
+2. Copy and paste it into your `.env` file
 
 ## 5. Ingest Documents
 
