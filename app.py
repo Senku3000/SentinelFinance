@@ -8,6 +8,9 @@ from src.graph import run_query
 from src.config import Config
 from src.tools.user_vault_tool import UserVaultTool
 from src.ingestion.embedder import DocumentEmbedder
+from src.ingestion.document_parser import DocumentParser
+from src.ingestion.user_embedder import UserEmbedder
+from src.ingestion.llm_extractor import LLMExtractor, merge_extracted_data
 
 # Page config
 st.set_page_config(
@@ -25,6 +28,10 @@ if "user_profile" not in st.session_state:
     st.session_state.user_profile = None
 if "asked_clarifications" not in st.session_state:
     st.session_state.asked_clarifications = []
+if "user_documents" not in st.session_state:
+    st.session_state.user_documents = []
+if "pending_extraction" not in st.session_state:
+    st.session_state.pending_extraction = None
 
 
 def _merge_profiles(defaults: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, Any]:
@@ -107,6 +114,7 @@ def main():
         user_id = st.text_input("User ID", value=st.session_state.user_id)
         st.session_state.user_id = user_id
         
+        # Load profile on startup (or when user clicks Load)
         if st.button("Load Profile"):
             profile = load_user_profile(user_id)
             if profile:
@@ -114,21 +122,105 @@ def main():
                 st.success("Profile loaded!")
             else:
                 st.info("No profile found. Using defaults.")
-        
-        st.markdown("---")
-        
-        # Profile Editor
-        st.header("Edit Profile")
-        
+
+        # Initialize profile if not loaded yet
         vault_tool = UserVaultTool()
-        if st.session_state.user_profile:
-            profile = _merge_profiles(
-                vault_tool._get_default_profile(user_id),
-                st.session_state.user_profile.copy()
-            )
-        else:
-            profile = vault_tool._get_default_profile(user_id)
-        
+        if not st.session_state.user_profile:
+            st.session_state.user_profile = vault_tool._get_default_profile(user_id)
+
+        st.markdown("---")
+
+        # --- Document Upload (BEFORE profile editor so extracted data shows up) ---
+        st.header("Your Documents")
+
+        uploaded_files = st.file_uploader(
+            "Upload financial documents",
+            type=["pdf", "xlsx", "xls", "csv", "txt", "md", "png", "jpg", "jpeg"],
+            accept_multiple_files=True,
+            help="Salary slips, tax returns, expense sheets, bank statements, etc.",
+        )
+
+        if uploaded_files:
+            user_embedder = UserEmbedder()
+            extractor = LLMExtractor()
+
+            for uploaded_file in uploaded_files:
+                # Save to user's documents directory
+                docs_dir = Config.get_user_documents_path(user_id)
+                dest_path = docs_dir / uploaded_file.name
+
+                with open(dest_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+
+                with st.spinner(f"Processing {uploaded_file.name}..."):
+                    # Parse & embed into user's FAISS index
+                    num_chunks = user_embedder.ingest_user_document(user_id, dest_path)
+
+                    if num_chunks > 0:
+                        st.success(f"{uploaded_file.name}: {num_chunks} chunks indexed")
+
+                        # LLM extraction
+                        parser = DocumentParser()
+                        chunks = parser.parse_file(dest_path)
+                        doc_text = "\n".join(c.content for c in chunks)
+
+                        with st.spinner(f"Extracting financial data from {uploaded_file.name}..."):
+                            extracted = extractor.extract(doc_text)
+
+                        if "error" not in extracted:
+                            summary = extracted.pop("document_summary", "Financial document")
+                            st.info(f"Detected: {summary}")
+
+                            with st.expander(f"Extracted data from {uploaded_file.name}"):
+                                # Show extracted fields (skip nulls)
+                                display = {
+                                    k: v for k, v in extracted.items()
+                                    if v is not None and v != {}
+                                }
+                                st.json(display)
+
+                            # Auto-merge into profile
+                            st.session_state.user_profile = merge_extracted_data(
+                                st.session_state.user_profile, extracted
+                            )
+                            save_user_profile(user_id, st.session_state.user_profile)
+                            st.success("Profile updated with extracted data!")
+                        else:
+                            st.warning(f"Could not extract structured data: {extracted.get('error')}")
+                    else:
+                        st.warning(f"No content extracted from {uploaded_file.name}")
+
+            # Refresh document list
+            st.session_state.user_documents = user_embedder.list_user_documents(user_id)
+
+        # Show uploaded documents
+        if not st.session_state.user_documents:
+            embedder_check = UserEmbedder()
+            st.session_state.user_documents = embedder_check.list_user_documents(user_id)
+
+        if st.session_state.user_documents:
+            st.subheader("Uploaded Documents")
+            for doc in st.session_state.user_documents:
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.text(f"{doc['filename']} ({doc['file_type']})")
+                with col2:
+                    if st.button("Delete", key=f"del_{doc['filename']}"):
+                        user_embedder = UserEmbedder()
+                        user_embedder.delete_user_document(user_id, doc["filename"])
+                        st.session_state.user_documents = user_embedder.list_user_documents(user_id)
+                        st.rerun()
+
+        st.markdown("---")
+
+        # --- Profile Editor (AFTER document upload so it reflects extracted values) ---
+        st.header("Edit Profile")
+
+        profile = _merge_profiles(
+            vault_tool._get_default_profile(user_id),
+            st.session_state.user_profile.copy()
+        )
+
         # Income
         st.subheader("Income")
         monthly_income = st.number_input(
@@ -139,7 +231,7 @@ def main():
         )
         profile["income"]["monthly"] = monthly_income
         profile["income"]["annual"] = monthly_income * 12
-        
+
         # Expenses
         st.subheader("Expenses")
         monthly_expenses = st.number_input(
@@ -149,7 +241,7 @@ def main():
             step=5000
         )
         profile["expenses"]["monthly"] = monthly_expenses
-        
+
         # Risk Tolerance
         risk_tolerance = st.selectbox(
             "Risk Tolerance",
@@ -159,36 +251,38 @@ def main():
             )
         )
         profile["risk_tolerance"] = risk_tolerance
-        
-        # Keep latest sidebar values in session (even if not saved)
+
+        # Keep latest sidebar values in session
         st.session_state.user_profile = profile
-        
+
         if st.button("Save Profile"):
             save_user_profile(user_id, profile)
             st.session_state.user_profile = profile
             st.success("Profile saved!")
-        
+
         st.markdown("---")
-        
-        # Document Ingestion
-        st.header("Document Management")
-        if st.button("Ingest Documents"):
-            with st.spinner("Ingesting documents..."):
-                try:
-                    embedder = DocumentEmbedder()
-                    num_chunks = embedder.ingest_documents()
-                    st.success(f"Ingested {num_chunks} chunks!")
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-        
+
+        # Knowledge Base Ingestion
+        with st.expander("Knowledge Base"):
+            st.caption("Ingest generic financial knowledge documents")
+            if st.button("Ingest Knowledge Base"):
+                with st.spinner("Ingesting documents..."):
+                    try:
+                        embedder = DocumentEmbedder()
+                        num_chunks = embedder.ingest_documents()
+                        st.success(f"Ingested {num_chunks} chunks!")
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+
         st.markdown("---")
-        
+
         # Info
         st.info("""
         **How to use:**
-        1. Set up your profile (income, expenses, risk tolerance)
-        2. Ask financial questions
-        3. Get personalized advice!
+        1. Upload your financial documents (salary slips, tax returns, expense sheets)
+        2. Review extracted data and edit your profile
+        3. Ask financial questions
+        4. Get personalized advice based on YOUR data!
         """)
 
 

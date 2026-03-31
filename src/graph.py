@@ -15,6 +15,7 @@ from .nodes import (
     should_continue,
 )
 from .config import Config
+from .ingestion.user_embedder import UserEmbedder
 
 
 def create_financial_advisory_graph() -> StateGraph:
@@ -138,6 +139,13 @@ def run_query(
         user_profile=user_profile,
         asked_clarifications=asked_clarifications
     )
+
+    # Load user's document metadata so nodes know what's available
+    try:
+        user_embedder = UserEmbedder()
+        initial_state["user_documents"] = user_embedder.list_user_documents(user_id)
+    except Exception:
+        initial_state["user_documents"] = []
     
     # Run graph
     config = config or {"configurable": {"thread_id": user_id}}

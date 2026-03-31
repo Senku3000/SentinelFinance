@@ -36,6 +36,11 @@ class FinancialAdvisoryState(TypedDict):
     
     # User profile
     user_profile: Optional[Dict[str, Any]]  # Income, expenses, goals, etc.
+
+    # User documents (personal uploads)
+    user_documents: List[Dict[str, Any]]  # Metadata of uploaded docs
+    user_doc_results: List[Dict[str, Any]]  # Retrieval results from user's FAISS index
+    document_sources: List[str]  # Which sources contributed to the answer
     
     # Synthesis
     intermediate_analysis: Optional[str]  # Analysis from Strategist
@@ -88,6 +93,9 @@ def create_initial_state(
         calculations=[],
         calculation_formulas=[],
         user_profile=user_profile,
+        user_documents=[],
+        user_doc_results=[],
+        document_sources=[],
         intermediate_analysis=None,
         confidence_scores={},
         constraints_violated=[],

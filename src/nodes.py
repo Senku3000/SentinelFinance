@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from .state import FinancialAdvisoryState
 from .config import Config
 from .tools import MathTool, SearchTool, VectorDBTool, UserVaultTool
+from .ingestion.user_embedder import UserEmbedder
 
 
 # Initialize LLM
@@ -232,8 +233,30 @@ Format as JSON array:
                         "results_count": len(db_result["results"])
                     })
         
+        # Step 3b: Search user's personal document index
+        user_doc_results = []
+        try:
+            user_embedder = UserEmbedder()
+            if user_embedder.has_documents(state["user_id"]):
+                search_query = state["user_query"]
+                user_results = user_embedder.search_user_documents(
+                    state["user_id"], search_query, k=3
+                )
+                user_doc_results = user_results
+                research_results.extend(user_results)
+
+                state["tool_calls"].append({
+                    "node": "researcher",
+                    "tool": "user_document_search",
+                    "query": search_query,
+                    "results_count": len(user_results)
+                })
+        except Exception as e:
+            state["errors"].append(f"User document search error: {str(e)}")
+
+        state["user_doc_results"] = user_doc_results
         state["research_results"] = research_results
-        
+
         # Step 4: Fetch market data if needed
         market_data = {}
         for hypothesis in hypotheses:
@@ -394,9 +417,21 @@ def clarifier_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     user_profile = state.get("user_profile") or {}
     intent = state.get("intent") or {}
     
+    # Check what info is available from user documents
+    user_doc_results = state.get("user_doc_results", [])
+    user_docs_meta = state.get("user_documents", [])
+    doc_context = ""
+    if user_doc_results:
+        doc_snippets = [r.get("content", "")[:200] for r in user_doc_results[:3]]
+        doc_context = "\nUser's uploaded documents contain:\n" + "\n".join(f"- {s}" for s in doc_snippets)
+    if user_docs_meta:
+        doc_names = [d.get("filename", "") for d in user_docs_meta]
+        doc_context += f"\nUploaded files: {', '.join(doc_names)}"
+
     clarifier_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a financial clarification agent. Ask 1-3 short questions
-only if critical information is missing. Avoid asking for info already present.
+only if critical information is missing. Avoid asking for info already present
+in the user profile OR in the user's uploaded documents.
 
 Return JSON:
 {{
@@ -408,6 +443,7 @@ Return JSON:
 
 Intent: {intent}
 User profile: {profile}
+{doc_context}
 """)
     ])
     
@@ -416,7 +452,8 @@ User profile: {profile}
         messages = clarifier_prompt.format_messages(
             query=user_query,
             intent=json.dumps(intent),
-            profile=profile_str
+            profile=profile_str,
+            doc_context=doc_context
         )
         response = llm.invoke(messages)
         parsed = _load_json_from_text(response.content)
@@ -551,15 +588,20 @@ def strategist_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     assumptions = state.get("assumptions", [])
     evidence_quality = state.get("evidence_quality", "low")
     
+    user_doc_results = state.get("user_doc_results", [])
+
     # Synthesis prompt
     synthesis_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a financial strategist. Synthesize all available information to provide personalized financial advice.
 
 Consider:
 1. Research findings from knowledge base
-2. Calculation results
-3. Current market data
-4. User's financial profile and constraints
+2. Personal document findings (from user's own uploaded financial documents)
+3. Calculation results
+4. Current market data
+5. User's financial profile and constraints
+
+IMPORTANT: When personal document findings are available, prioritize them — they contain the user's actual financial data. Reference specific numbers from their documents when giving advice.
 
 Generate a comprehensive recommendation with:
 - Clear answer to user's query
@@ -573,8 +615,11 @@ Format your response as a detailed financial recommendation."""),
 User Profile:
 {profile}
 
-Research Findings:
+Knowledge Base Findings:
 {research}
+
+Personal Document Findings:
+{personal_docs}
 
 Calculations:
 {calculations}
@@ -595,10 +640,17 @@ Provide your financial recommendation:""")
         # Format inputs
         profile_str = json.dumps(user_profile, indent=2) if user_profile else "Not available"
         
+        # Separate knowledge base results from personal document results
+        kb_results = [r for r in research_results if r.get("retrieval_type") != "personal_document"]
         research_str = "\n".join([
-            f"- {r.get('content', '')[:300]}..." 
-            for r in research_results[:5]
-        ]) if research_results else "No research results available"
+            f"- {r.get('content', '')[:300]}..."
+            for r in kb_results[:5]
+        ]) if kb_results else "No research results available"
+
+        personal_doc_str = "\n".join([
+            f"- [From {r.get('metadata', {}).get('file_name', 'document')}]: {r.get('content', '')[:300]}..."
+            for r in user_doc_results[:5]
+        ]) if user_doc_results else "No personal documents uploaded"
         
         calc_str = "\n".join([
             f"- {calc.get('description', 'Calculation')}: {calc.get('result', 'N/A')}"
@@ -611,6 +663,7 @@ Provide your financial recommendation:""")
             query=user_query,
             profile=profile_str,
             research=research_str,
+            personal_docs=personal_doc_str,
             calculations=calc_str,
             market_data=market_str,
             assumptions="\n".join(f"- {a}" for a in assumptions) if assumptions else "None",

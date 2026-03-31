@@ -48,13 +48,46 @@ class Config:
         return True
     
     @classmethod
+    def get_user_dir(cls, user_id: str) -> Path:
+        """Get root directory for a user's data"""
+        user_dir = Path(cls.USER_VAULT_PATH) / user_id
+        user_dir.mkdir(parents=True, exist_ok=True)
+        return user_dir
+
+    @classmethod
     def get_user_vault_file(cls, user_id: str) -> Path:
         """Get path to user vault JSON file"""
-        vault_dir = Path(cls.USER_VAULT_PATH)
-        vault_dir.mkdir(parents=True, exist_ok=True)
-        return vault_dir / f"{user_id}.json"
-    
+        user_dir = cls.get_user_dir(user_id)
+        new_path = user_dir / "profile.json"
+
+        # Migration: move old flat file into subdirectory
+        old_path = Path(cls.USER_VAULT_PATH) / f"{user_id}.json"
+        if old_path.exists() and not new_path.exists():
+            old_path.rename(new_path)
+            print(f"Migrated profile: {old_path} -> {new_path}")
+
+        return new_path
+
+    @classmethod
+    def get_user_faiss_path(cls, user_id: str) -> Path:
+        """Get path to user's personal FAISS index"""
+        faiss_path = cls.get_user_dir(user_id) / "faiss_index"
+        faiss_path.mkdir(parents=True, exist_ok=True)
+        return faiss_path
+
+    @classmethod
+    def get_user_documents_path(cls, user_id: str) -> Path:
+        """Get path to user's uploaded documents directory"""
+        docs_path = cls.get_user_dir(user_id) / "documents"
+        docs_path.mkdir(parents=True, exist_ok=True)
+        return docs_path
+
+    @classmethod
+    def get_user_manifest_file(cls, user_id: str) -> Path:
+        """Get path to user's document manifest"""
+        return cls.get_user_dir(user_id) / "manifest.json"
+
     @classmethod
     def get_documents_path(cls) -> Path:
-        """Get path to documents directory"""
+        """Get path to global knowledge base documents directory"""
         return Path(cls.DOCUMENTS_PATH)
