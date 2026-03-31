@@ -75,39 +75,15 @@ class UserVaultTool(BaseTool):
             return False
     
     def _get_default_profile(self, user_id: str) -> Dict[str, Any]:
-        """Get default user profile structure"""
+        """Get empty user profile — no hardcoded defaults."""
         return {
             "user_id": user_id,
-            "income": {
-                "monthly": 150000,  # ₹1.5L default
-                "annual": 1800000,
-                "source": "salary"
-            },
-            "expenses": {
-                "monthly": 50000,  # ₹50k default
-                "breakdown": {
-                    "rent": 20000,
-                    "food": 15000,
-                    "transport": 5000,
-                    "utilities": 5000,
-                    "other": 5000
-                }
-            },
+            "income": {"monthly": None, "annual": None, "source": None},
+            "expenses": {"monthly": None, "breakdown": {}},
             "goals": [],
-            "risk_tolerance": "moderate",
-            "existing_investments": {
-                "equity": 0,
-                "debt": 0,
-                "gold": 0,
-                "fd": 0,
-                "others": 0
-            },
-            "tax_details": {
-                "hra_exemption": 0,
-                "section_80c": 0,
-                "section_80d": 0,
-                "other_deductions": 0
-            },
+            "risk_tolerance": None,
+            "existing_investments": {},
+            "tax_details": {},
             "created_at": None,
             "updated_at": None
         }

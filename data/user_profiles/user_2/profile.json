@@ -1,0 +1,18 @@
+{
+  "user_id": "user_2",
+  "income": {
+    "monthly": 40000,
+    "annual": 480000,
+    "source": "salary"
+  },
+  "expenses": {
+    "monthly": 15000,
+    "breakdown": {}
+  },
+  "goals": [],
+  "risk_tolerance": "conservative",
+  "existing_investments": {},
+  "tax_details": {},
+  "created_at": "2026-03-31T03:58:52.844298+00:00",
+  "updated_at": "2026-03-31T08:48:06.354251+00:00"
+}

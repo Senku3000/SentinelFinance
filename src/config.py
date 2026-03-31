@@ -39,6 +39,19 @@ class Config:
     
     # Cache Settings
     SEARCH_CACHE_TTL: int = int(os.getenv("SEARCH_CACHE_TTL", "3600"))  # 1 hour
+
+    # Web Search
+    TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
+
+    # MySQL
+    MYSQL_USER: str = os.getenv("MYSQL_USER", "root")
+    MYSQL_PASSWORD: str = os.getenv("MYSQL_PASSWORD", "")
+    MYSQL_HOST: str = os.getenv("MYSQL_HOST", "localhost")
+    MYSQL_DB: str = os.getenv("MYSQL_DB", "sentinel_finance")
+
+    # Web
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production")
+    SESSION_MAX_AGE: int = int(os.getenv("SESSION_MAX_AGE", "86400"))
     
     @classmethod
     def validate(cls) -> bool:

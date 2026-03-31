@@ -54,6 +54,8 @@ def create_financial_advisory_graph() -> StateGraph:
         should_continue,
         {
             "router": "router",
+            "researcher": "researcher",
+            "strategist": "strategist",
             "end": END
         }
     )

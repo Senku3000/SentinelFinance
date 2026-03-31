@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SentinelFinance{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Nav -->
+    <nav class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex justify-between items-center">
+        <a href="/dashboard" class="text-xl font-bold text-emerald-400">SentinelFinance</a>
+        {% if user %}
+        <div class="flex items-center gap-4">
+            <span class="text-gray-400 text-sm">{{ user.email }}</span>
+            <a href="/logout" class="text-sm text-red-400 hover:text-red-300">Logout</a>
+        </div>
+        {% endif %}
+    </nav>
+
+    <!-- Content -->
+    <main class="max-w-7xl mx-auto">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

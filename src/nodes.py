@@ -116,18 +116,13 @@ Respond in JSON format:
         state["needs_user_profile"] = intent_data.get("needs_user_profile", False)
         state["needs_clarification"] = intent_data.get("needs_clarification", False)
         
-        # Determine next node
-        if state.get("needs_clarification"):
-            state["next_node"] = "clarifier"
-        elif state["needs_research"]:
+        # Determine next node — always gather evidence first, never skip to clarifier
+        if state["needs_research"] or state["needs_user_profile"]:
             state["next_node"] = "researcher"
         elif state["needs_calculation"]:
             state["next_node"] = "analyst"
-        elif state["needs_user_profile"] and not state.get("user_profile"):
-            # Need to fetch user profile first
-            state["next_node"] = "researcher"  # Will fetch profile in researcher
         else:
-            state["next_node"] = "strategist"
+            state["next_node"] = "researcher"  # Default: always research first
         
         # Log tool call
         state["tool_calls"].append({
@@ -270,6 +265,11 @@ Format as JSON array:
                     fd_data = search_tool._run("fd_rates")
                     if fd_data.get("success"):
                         market_data["fd"] = fd_data
+                else:
+                    # Web search for anything else (product prices, general queries)
+                    web_data = search_tool._run(user_query)
+                    if web_data.get("success"):
+                        market_data["web_search"] = web_data
         
         state["market_data"] = market_data
         
@@ -538,39 +538,26 @@ def evidence_scorer_node(state: FinancialAdvisoryState) -> FinancialAdvisoryStat
     if not research_results:
         state["evidence_score"] = 0.0
         state["evidence_quality"] = "low"
-        state["needs_clarification"] = True
-        state["clarification_questions"] = [
-            "I couldn't find enough relevant information. Can you provide more details or context?"
-        ]
-        state["next_node"] = "clarifier"
-        return state
-    
-    # Simple heuristic: lower FAISS distance score is better, so invert for quality.
-    if scores:
-        avg_score = sum(scores) / len(scores)
-        evidence_score = max(0.0, min(1.0, 1.0 / (1.0 + avg_score)))
     else:
-        evidence_score = 0.4
-    
-    if evidence_score >= 0.7:
-        quality = "high"
-    elif evidence_score >= 0.4:
-        quality = "medium"
-    else:
-        quality = "low"
-    
-    state["evidence_score"] = evidence_score
-    state["evidence_quality"] = quality
-    
-    if quality == "low":
-        state["needs_clarification"] = True
-        state["clarification_questions"] = [
-            "I need a bit more detail to answer accurately (e.g., amounts, tenure, risk level)."
-        ]
-        state["next_node"] = "clarifier"
-    else:
-        state["next_node"] = "strategist"
-    
+        # Simple heuristic: lower FAISS distance score is better, so invert for quality.
+        if scores:
+            avg_score = sum(scores) / len(scores)
+            evidence_score = max(0.0, min(1.0, 1.0 / (1.0 + avg_score)))
+        else:
+            evidence_score = 0.4
+
+        if evidence_score >= 0.5:
+            quality = "high"
+        elif evidence_score >= 0.2:
+            quality = "medium"
+        else:
+            quality = "low"
+
+        state["evidence_score"] = evidence_score
+        state["evidence_quality"] = quality
+
+    # Always go to strategist — let it answer with what it has
+    state["next_node"] = "strategist"
     return state
 
 
@@ -592,33 +579,25 @@ def strategist_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
 
     # Synthesis prompt
     synthesis_prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a financial strategist. Synthesize all available information to provide personalized financial advice.
+        ("system", """You are a sharp, honest personal financial adviser who knows the user well.
 
-Consider:
-1. Research findings from knowledge base
-2. Personal document findings (from user's own uploaded financial documents)
-3. Calculation results
-4. Current market data
-5. User's financial profile and constraints
-
-IMPORTANT: When personal document findings are available, prioritize them — they contain the user's actual financial data. Reference specific numbers from their documents when giving advice.
-
-Generate a comprehensive recommendation with:
-- Clear answer to user's query
-- Specific actionable steps
-- Confidence level (high/medium/low)
-- Any constraints or warnings
-
-Format your response as a detailed financial recommendation."""),
-        ("human", """User Query: {query}
+RULES:
+- Be DIRECT. Answer the question first, then explain briefly. No fluff.
+- Use the user's ACTUAL numbers (income, expenses, savings) in your answer. Don't say "consider your budget" — say "you make ₹1.1L and spend ₹30k, so you have ₹80k/month to work with."
+- Give your real OPINION. If something is a bad financial decision, say so clearly and why. If it's fine, say that too.
+- Think practically — compare costs to the user's monthly savings, not in abstract terms.
+- Keep it SHORT. 3-5 sentences for simple questions. Only go longer if the user asked for a detailed breakdown.
+- Don't add generic disclaimers like "consult a financial advisor" or "this is not financial advice." You ARE the advisor.
+- If you don't have enough info, say what specific info you need — don't give a vague non-answer."""),
+        ("human", """User's question: {query}
 
 User Profile:
 {profile}
 
-Knowledge Base Findings:
+Knowledge Base:
 {research}
 
-Personal Document Findings:
+Personal Documents:
 {personal_docs}
 
 Calculations:
@@ -627,13 +606,7 @@ Calculations:
 Market Data:
 {market_data}
 
-Assumptions:
-{assumptions}
-
-Evidence Quality:
-{evidence_quality}
-
-Provide your financial recommendation:""")
+Answer directly:""")
     ])
     
     try:
@@ -666,8 +639,6 @@ Provide your financial recommendation:""")
             personal_docs=personal_doc_str,
             calculations=calc_str,
             market_data=market_str,
-            assumptions="\n".join(f"- {a}" for a in assumptions) if assumptions else "None",
-            evidence_quality=evidence_quality
         )
         
         response = llm.invoke(messages)

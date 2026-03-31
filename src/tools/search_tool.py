@@ -70,11 +70,8 @@ class SearchTool(BaseTool):
             elif "mutual_fund" in data_type.lower() or "mf" in data_type.lower():
                 result = self._get_mutual_fund_nav(query)
             else:
-                result = {
-                    "success": False,
-                    "error": f"Unknown data type: {data_type}. Supported: gold_rate, fd_rates, stock_price, mutual_fund",
-                    "data": None
-                }
+                # Fallback: web search via Tavily for anything else
+                result = self._web_search(query)
             
             # Cache the result
             if result.get("success"):
@@ -188,6 +185,55 @@ class SearchTool(BaseTool):
                 "timestamp": datetime.now().isoformat()
             }
     
+    def _web_search(self, query: str) -> Dict[str, Any]:
+        """Search the web via Tavily for real-time info (prices, products, etc.)."""
+        api_key = Config.TAVILY_API_KEY
+        if not api_key:
+            return {
+                "success": False,
+                "error": "TAVILY_API_KEY not set. Cannot perform web search.",
+                "data": None,
+                "timestamp": datetime.now().isoformat()
+            }
+
+        try:
+            from tavily import TavilyClient
+            client = TavilyClient(api_key=api_key)
+            response = client.search(query, max_results=3)
+
+            results = response.get("results", [])
+            if not results:
+                return {
+                    "success": False,
+                    "error": "No web results found",
+                    "data": None,
+                    "timestamp": datetime.now().isoformat()
+                }
+
+            return {
+                "success": True,
+                "data": {
+                    "query": query,
+                    "results": [
+                        {
+                            "title": r.get("title", ""),
+                            "content": r.get("content", "")[:500],
+                            "url": r.get("url", ""),
+                        }
+                        for r in results
+                    ],
+                    "source": "tavily_web_search",
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Web search failed: {str(e)}",
+                "data": None,
+                "timestamp": datetime.now().isoformat()
+            }
+
     def _get_mutual_fund_nav(self, query: str) -> Dict[str, Any]:
         """Get mutual fund NAV"""
         # This would require integration with AMFI or mutual fund APIs
