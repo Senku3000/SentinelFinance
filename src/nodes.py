@@ -252,25 +252,36 @@ Format as JSON array:
         state["user_doc_results"] = user_doc_results
         state["research_results"] = research_results
 
-        # Step 4: Fetch market data if needed
+        # Step 4: Fetch market data
         market_data = {}
-        for hypothesis in hypotheses:
-            if hypothesis.get("needs_market_data", False):
-                # Determine what market data is needed
-                if "gold" in user_query.lower():
-                    gold_data = search_tool._run("gold_rate")
-                    if gold_data.get("success"):
-                        market_data["gold"] = gold_data
-                elif "fd" in user_query.lower() or "fixed deposit" in user_query.lower():
-                    fd_data = search_tool._run("fd_rates")
-                    if fd_data.get("success"):
-                        market_data["fd"] = fd_data
-                else:
-                    # Web search for anything else (product prices, general queries)
-                    web_data = search_tool._run(user_query)
+
+        # Always check for specific market data types
+        if "gold" in user_query.lower():
+            gold_data = search_tool._run("gold_rate")
+            if gold_data.get("success"):
+                market_data["gold"] = gold_data
+        if "fd" in user_query.lower() or "fixed deposit" in user_query.lower():
+            fd_data = search_tool._run("fd_rates")
+            if fd_data.get("success"):
+                market_data["fd"] = fd_data
+
+        # Always do a web search — use LLM to extract a clean search query
+        if not market_data:
+            try:
+                extract_prompt = ChatPromptTemplate.from_messages([
+                    ("system", "Extract a short web search query from the user's message. Focus on the product, price, or factual lookup needed. Return ONLY the search query, nothing else. If no search is needed, return 'NONE'."),
+                    ("human", "{query}")
+                ])
+                search_response = llm.invoke(extract_prompt.format_messages(query=user_query))
+                search_query = search_response.content.strip().strip('"')
+
+                if search_query and search_query.upper() != "NONE":
+                    web_data = search_tool._run(search_query)
                     if web_data.get("success"):
                         market_data["web_search"] = web_data
-        
+            except Exception:
+                pass  # Web search is best-effort
+
         state["market_data"] = market_data
         
         # Determine next node
@@ -654,9 +665,9 @@ Answer directly:""")
         # Check for constraint violations
         constraints_violated = []
         if user_profile:
-            income = user_profile.get("income", {}).get("monthly", 0)
-            expenses = user_profile.get("expenses", {}).get("monthly", 0)
-            if expenses > income * 0.8:  # More than 80% of income
+            income = user_profile.get("income", {}).get("monthly") or 0
+            expenses = user_profile.get("expenses", {}).get("monthly") or 0
+            if income > 0 and expenses > income * 0.8:
                 constraints_violated.append("High expense-to-income ratio")
         
         state["final_recommendation"] = recommendation

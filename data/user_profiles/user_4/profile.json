@@ -1,9 +1,9 @@
 {
-  "user_id": "user_2",
+  "user_id": "user_4",
   "income": {
     "monthly": 400000,
     "annual": 4800000,
-    "source": "salary"
+    "source": null
   },
   "expenses": {
     "monthly": 150000,
@@ -18,13 +18,13 @@
     }
   },
   "goals": [],
-  "risk_tolerance": "conservative",
+  "risk_tolerance": null,
   "existing_investments": {
     "others": 150000
   },
   "tax_details": {},
-  "created_at": "2026-03-31T03:58:52.844298+00:00",
-  "updated_at": "2026-03-31T14:22:03.779546+00:00",
+  "created_at": "2026-03-31T14:48:45.384484+00:00",
+  "updated_at": "2026-03-31T14:50:58.029715+00:00",
   "liabilities": {
     "home_loan_outstanding": null,
     "car_loan_outstanding": null,

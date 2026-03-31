@@ -1,5 +1,6 @@
 """FastAPI routes — pages and form handlers."""
 
+import re
 from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -18,6 +19,56 @@ from src.ingestion.llm_extractor import LLMExtractor, merge_extracted_data
 
 router = APIRouter()
 templates = Jinja2Templates(directory="web/templates")
+
+
+def _extract_profile_from_text(profile: dict, text: str) -> tuple[dict, bool]:
+    """Extract income/expenses from chat text and update profile. Returns (profile, was_updated)."""
+    updated = False
+    text_lower = text.lower()
+
+    # Match patterns like: income 1L, salary 1.5 lakh, earn 100000, income is 1L
+    inc_match = re.search(
+        r"(?:income|salary|earn|earning|make)\s*(?:is\s*)?(\d+(?:\.\d+)?)\s*(l|lac|lakh|k)?",
+        text_lower
+    )
+    exp_match = re.search(
+        r"(?:expense|spend|spending|expenditure)\s*(?:is\s*)?(\d+(?:\.\d+)?)\s*(l|lac|lakh|k)?",
+        text_lower
+    )
+
+    if inc_match:
+        val = float(inc_match.group(1))
+        suffix = inc_match.group(2) or ""
+        if suffix in ("l", "lac", "lakh"):
+            val *= 100000
+        elif suffix == "k":
+            val *= 1000
+        profile.setdefault("income", {})["monthly"] = int(val)
+        profile["income"]["annual"] = int(val) * 12
+        updated = True
+
+    if exp_match:
+        val = float(exp_match.group(1))
+        suffix = exp_match.group(2) or ""
+        if suffix in ("l", "lac", "lakh"):
+            val *= 100000
+        elif suffix == "k":
+            val *= 1000
+        profile.setdefault("expenses", {})["monthly"] = int(val)
+        updated = True
+
+    # Risk tolerance
+    if re.search(r"risk.?tak|aggressive|high risk", text_lower):
+        profile["risk_tolerance"] = "aggressive"
+        updated = True
+    elif re.search(r"moderate|balanced|medium risk", text_lower):
+        profile["risk_tolerance"] = "moderate"
+        updated = True
+    elif re.search(r"conservative|safe|low risk|no risk|risk.?averse", text_lower):
+        profile["risk_tolerance"] = "conservative"
+        updated = True
+
+    return profile, updated
 
 
 # ── Auth Pages ──
@@ -124,6 +175,11 @@ def chat_submit(
 
     uid_str = crud.user_id_str(user.id)
     profile = crud.get_profile(db, user.id)
+
+    # Extract income/expenses from chat text and update profile if found
+    profile, updated = _extract_profile_from_text(profile, query)
+    if updated:
+        crud.update_profile(db, user.id, profile)
 
     # Save user message
     crud.add_chat_message(db, user.id, "user", query)
