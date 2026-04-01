@@ -1,135 +1,92 @@
-# SentinelFinance - Agentic Personal Financial Adviser
+# SentinelFinance — AI Personal Financial Adviser
 
-An AI-powered financial adviser built with LangGraph that uses Agentic RAG to provide personalized financial advice. The system uses atomic tools to reason through any financial query without hardcoded functions.
+An AI-powered financial adviser built with LangGraph. Upload your financial documents, ask questions, and get personalized advice based on your actual numbers.
 
 ## Features
 
-- **Agentic RAG**: Retrieves relevant financial knowledge from vector database
-- **Atomic Tools**: Math, Search, Vector DB, and User Vault tools for flexible reasoning
-- **Stateful Workflow**: LangGraph-based routing between Router, Researcher, Analyst, and Strategist nodes
-- **Personalized Advice**: Considers user profile (income, expenses, goals) for recommendations
-- **Real-time Data**: Fetches current market rates and financial data
-- **Deterministic Calculations**: Uses Python REPL for accurate financial math
+- **Document Upload** — Salary slips, tax returns, expense sheets (PDF, Excel, CSV). AI extracts income, expenses, investments, and tax details automatically.
+- **Agentic RAG** — Retrieves relevant info from your uploaded documents and a financial knowledge base via FAISS.
+- **Web Search** — Real-time product prices, market rates, and financial data via Tavily.
+- **Precise Calculations** — EMI, SIP, tax, ROI computed in a sandboxed Python REPL (not guessed by the LLM).
+- **Direct Opinions** — Uses your actual numbers, gives real financial opinions, not generic advice.
+- **User Auth** — Signup/login with persistent profiles, chat history, and document storage.
 
 ## Architecture
 
-The system consists of four core nodes:
+Multi-agent pipeline built on LangGraph:
 
-1. **Router**: Analyzes user intent and routes to appropriate nodes
-2. **Researcher**: Retrieves financial knowledge from vector DB and real-time market data
-3. **Analyst**: Performs financial calculations (EMI, SIP, taxes, etc.)
-4. **Strategist**: Synthesizes information to provide personalized recommendations
+```
+Query → Router → Researcher (FAISS + Tavily + yfinance)
+              → Analyst (Python Math REPL)
+              → Strategist → Personalized Answer
+```
+
+## Tech Stack
+
+- **Backend**: FastAPI + Jinja2 templates
+- **Database**: MySQL (users, profiles, chat history)
+- **LLM**: Groq (Llama 3.3-70B)
+- **Vector DB**: FAISS (per-user indexes)
+- **Web Search**: Tavily
+- **Document Processing**: LangChain + sentence-transformers
 
 ## Setup
 
-### 1. Install Dependencies
-
 ```bash
-# Create virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# 1. Create virtual environment
+python -m venv .venv
+source .venv/bin/activate
 
-# Install packages
+# 2. Install dependencies
 pip install -r requirements.txt
-```
 
-### 2. Configure Environment
+# 3. Configure .env
+cp .env.example .env
+# Edit .env with your keys:
+#   GROQ_API_KEY=...
+#   TAVILY_API_KEY=...
+#   MYSQL_USER=root
+#   MYSQL_PASSWORD=...
+#   MYSQL_HOST=localhost
+#   MYSQL_DB=sentinel_finance
 
-Create a `.env` file in the project root:
+# 4. Create MySQL database
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS sentinel_finance;"
 
-```bash
-# Copy the example (if .env.example exists) or create manually
-touch .env
-```
-
-Add your configuration:
-
-```env
-# Required: Groq API Key
-GROQ_API_KEY=your_groq_api_key_here
-GROQ_MODEL=llama-3.3-70b-versatile
-
-# Optional: Other settings (defaults are fine for MVP)
-VECTOR_DB_PATH=./data/chroma_db
-USER_VAULT_PATH=./data/user_profiles
-DEFAULT_USER_ID=default_user
-MAX_ITERATIONS=10
-```
-
-**Get Groq API Key:**
-1. Create a Groq API key in the Groq console
-2. Copy it to your `.env` file
-
-### 3. Ingest Documents
-
-The project includes starter documents. Ingest them into the vector database:
-
-```bash
+# 5. Ingest knowledge base (one-time)
 python ingest_documents.py
+
+# 6. Run the app
+uvicorn main:app --reload
 ```
 
-This will:
-- Process all PDF/text files in `data/documents/`
-- Create embeddings and store in FAISS
-- Make documents searchable for the RAG system
-
-**Adding More Documents:**
-- Place PDF or text files in `data/documents/`
-- Run `python ingest_documents.py` again
-
-### 4. Run the Application
-
-```bash
-streamlit run app.py
-```
-
-The app will open in your browser at `http://localhost:8501`
-
-## Usage
-
-1. **Set Up Profile**: Use the sidebar to set your income, expenses, and risk tolerance
-2. **Ask Questions**: Type financial questions in the chat, such as:
-   - "Should I buy a house?"
-   - "How can I save taxes?"
-   - "What's the best SIP strategy for retirement?"
-   - "Calculate EMI for ₹50 lakh home loan at 8.5% for 20 years"
-3. **View Recommendations**: The system will provide personalized advice with calculations and confidence scores
+Open `http://localhost:8000`
 
 ## Project Structure
 
 ```
 fin_adviser/
-├── src/                    # Core source code
-│   ├── state.py           # State management
-│   ├── nodes.py           # Graph nodes
-│   ├── graph.py           # LangGraph construction
-│   ├── config.py          # Configuration
-│   ├── tools/             # Atomic tools
-│   └── ingestion/         # Document processing
-├── app.py                 # Streamlit UI
-├── data/                  # Data storage
-│   ├── documents/         # Source documents
-│   ├── user_profiles/     # User data
-│   └── chroma_db/         # Vector database (FAISS)
-└── requirements.txt       # Dependencies
+├── main.py                 # FastAPI entry point
+├── web/
+│   ├── routes.py           # Page routes + form handlers
+│   ├── auth.py             # Session cookies
+│   ├── dependencies.py     # Auth middleware
+│   └── templates/          # Jinja2 HTML (home, login, signup, dashboard, profile)
+├── db/
+│   ├── database.py         # SQLAlchemy + MySQL
+│   ├── models.py           # User, Profile, ChatMessage, Document
+│   └── crud.py             # All DB operations
+├── src/
+│   ├── graph.py            # LangGraph workflow
+│   ├── nodes.py            # Router, Researcher, Analyst, Strategist
+│   ├── state.py            # State management
+│   ├── config.py           # Configuration
+│   ├── tools/              # SearchTool, MathTool, VectorDBTool, UserVaultTool
+│   └── ingestion/          # DocumentParser, UserEmbedder, LLMExtractor
+├── data/
+│   └── documents/          # Knowledge base (tax, investments, loans)
+└── requirements.txt
 ```
-
-## Usage
-
-1. Start the Streamlit app
-2. Set up your user profile (income, expenses, goals)
-3. Ask financial questions like:
-   - "Should I buy a house?"
-   - "How can I save taxes?"
-   - "What's the best SIP strategy for retirement?"
-
-## Technical Stack
-
-- **Python**: 3.11+
-- **Framework**: LangGraph + LangChain
-- **LLM**: Groq (Llama)
-- **Vector DB**: FAISS
-- **UI**: Streamlit
 
 ## License
 
