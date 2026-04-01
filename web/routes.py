@@ -128,12 +128,12 @@ def logout():
 
 # ── Root ──
 
-@router.get("/")
+@router.get("/", response_class=HTMLResponse)
 def root(request: Request):
     cookie = request.cookies.get("session")
     if cookie:
         return RedirectResponse("/dashboard", status_code=303)
-    return RedirectResponse("/login", status_code=303)
+    return templates.TemplateResponse(request, "home.html", {})
 
 
 # ── Dashboard ──
