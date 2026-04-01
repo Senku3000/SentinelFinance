@@ -2,68 +2,110 @@
 {% block title %}SentinelFinance — Your AI Financial Adviser{% endblock %}
 
 {% block content %}
+<style>
+    /* Animations */
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); } 50% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.3); } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    @keyframes dash { to { stroke-dashoffset: 0; } }
+    @keyframes typewriter { from { width: 0; } to { width: 100%; } }
+    @keyframes blink { 50% { border-color: transparent; } }
+
+    .fade-in { animation: fadeInUp 0.8s ease-out both; }
+    .fade-in-d1 { animation-delay: 0.1s; }
+    .fade-in-d2 { animation-delay: 0.2s; }
+    .fade-in-d3 { animation-delay: 0.3s; }
+    .fade-in-d4 { animation-delay: 0.4s; }
+
+    .logo-hover { transition: all 0.3s ease; }
+    .logo-hover:hover { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.4)); }
+
+    .card-hover { transition: all 0.3s ease; }
+    .card-hover:hover { transform: translateY(-6px); border-color: rgba(16, 185, 129, 0.5); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
+
+    .cta-glow { animation: pulse-glow 3s ease-in-out infinite; }
+    .float-anim { animation: float 4s ease-in-out infinite; }
+
+    .node-hover { transition: all 0.3s ease; cursor: pointer; }
+    .node-hover:hover { filter: brightness(1.3) drop-shadow(0 0 8px currentColor); }
+
+    .code-line { font-family: 'Courier New', monospace; }
+    .highlight-green { color: #10b981; }
+    .highlight-blue { color: #3b82f6; }
+    .highlight-amber { color: #f59e0b; }
+    .highlight-gray { color: #6b7280; }
+</style>
+
 <div class="min-h-[calc(100vh-60px)] flex flex-col">
 
     <!-- Hero -->
-    <section class="flex-1 flex flex-col items-center justify-center text-center px-6 py-20">
-        <div class="max-w-3xl">
-            <div class="inline-block px-4 py-1.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-emerald-400 text-sm mb-6">
+    <section class="flex-1 flex flex-col items-center justify-center text-center px-6 py-24 relative overflow-hidden">
+        <!-- Background gradient orbs -->
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-600/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl"></div>
+
+        <div class="max-w-3xl relative z-10">
+            <div class="fade-in inline-block px-4 py-1.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-emerald-400 text-sm mb-6">
                 AI-Powered Financial Intelligence
             </div>
-            <h1 class="text-5xl md:text-6xl font-bold leading-tight mb-6">
+            <h1 class="fade-in fade-in-d1 text-5xl md:text-7xl font-bold leading-tight mb-6">
                 Your Personal<br>
-                <span class="text-emerald-400">Financial Adviser</span>
+                <span class="text-emerald-400 logo-hover inline-block">Financial Adviser</span>
             </h1>
-            <p class="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
+            <p class="fade-in fade-in-d2 text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
                 Upload your financial documents, get instant insights, and make smarter money decisions — all powered by AI that knows your numbers.
             </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <div class="fade-in fade-in-d3 flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="/signup"
-                    class="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-lg font-semibold transition shadow-lg shadow-emerald-900/30">
+                    class="cta-glow px-8 py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg shadow-emerald-900/30 hover:shadow-emerald-800/50 hover:scale-105">
                     Get Started Free
                 </a>
                 <a href="/login"
-                    class="px-8 py-3.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-lg font-semibold transition">
+                    class="px-8 py-3.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-emerald-600 rounded-lg text-lg font-semibold transition-all duration-300 hover:scale-105">
                     Log In
                 </a>
             </div>
         </div>
     </section>
 
-    <!-- Features -->
-    <section class="py-20 px-6 border-t border-gray-800">
+    <!-- How It Works -->
+    <section class="py-24 px-6 border-t border-gray-800">
         <div class="max-w-5xl mx-auto">
-            <h2 class="text-2xl font-bold text-center mb-12 text-gray-300">How it works</h2>
+            <h2 class="text-3xl font-bold text-center mb-4 text-gray-200">How it works</h2>
+            <p class="text-gray-400 text-center mb-16 max-w-xl mx-auto">Three simple steps to smarter financial decisions</p>
             <div class="grid md:grid-cols-3 gap-8">
 
-                <div class="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 text-center">
-                    <div class="w-12 h-12 bg-emerald-900/40 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="card-hover bg-gray-800/50 border border-gray-700/50 rounded-xl p-8 text-center relative">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                    <div class="float-anim w-14 h-14 bg-emerald-900/40 rounded-xl flex items-center justify-center mx-auto mb-5">
+                        <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-semibold mb-2">Upload Documents</h3>
-                    <p class="text-gray-400 text-sm">Salary slips, tax returns, expense sheets — upload any financial document and we'll extract the data automatically.</p>
+                    <h3 class="text-lg font-semibold mb-3">Upload Documents</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Salary slips, tax returns, expense sheets, bank statements — upload any financial document. Our AI extracts income, expenses, investments, and tax details automatically.</p>
                 </div>
 
-                <div class="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 text-center">
-                    <div class="w-12 h-12 bg-emerald-900/40 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                <div class="card-hover bg-gray-800/50 border border-gray-700/50 rounded-xl p-8 text-center relative">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                    <div class="float-anim w-14 h-14 bg-emerald-900/40 rounded-xl flex items-center justify-center mx-auto mb-5" style="animation-delay: 0.5s;">
+                        <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-semibold mb-2">Ask Anything</h3>
-                    <p class="text-gray-400 text-sm">Can I afford this? Should I invest? How do I save tax? Get direct, honest answers based on your actual financial data.</p>
+                    <h3 class="text-lg font-semibold mb-3">Ask Anything</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Can I afford this? Should I invest? How do I save tax? What's the EMI for a 50L home loan? Get direct, honest answers — not generic advice.</p>
                 </div>
 
-                <div class="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 text-center">
-                    <div class="w-12 h-12 bg-emerald-900/40 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="card-hover bg-gray-800/50 border border-gray-700/50 rounded-xl p-8 text-center relative">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                    <div class="float-anim w-14 h-14 bg-emerald-900/40 rounded-xl flex items-center justify-center mx-auto mb-5" style="animation-delay: 1s;">
+                        <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-semibold mb-2">Personalized Insights</h3>
-                    <p class="text-gray-400 text-sm">Real-time web search for prices, market data, and rates — combined with your profile for advice that's actually relevant to you.</p>
+                    <h3 class="text-lg font-semibold mb-3">Get Personalized Advice</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Answers reference YOUR actual income, expenses, and goals. Real-time web search for current prices and rates. Math done precisely, not guessed.</p>
                 </div>
 
             </div>
@@ -71,99 +113,291 @@
     </section>
 
     <!-- Agent Architecture -->
-    <section class="py-20 px-6 border-t border-gray-800">
-        <div class="max-w-5xl mx-auto">
-            <h2 class="text-2xl font-bold text-center mb-4 text-gray-300">Under the Hood</h2>
-            <p class="text-gray-400 text-center mb-12 max-w-2xl mx-auto">A multi-agent system powered by LangGraph — each agent specializes in a part of the financial analysis pipeline.</p>
+    <section class="py-24 px-6 border-t border-gray-800 bg-gradient-to-b from-gray-900 to-gray-950">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4 text-gray-200">The Agent Pipeline</h2>
+            <p class="text-gray-400 text-center mb-16 max-w-2xl mx-auto">A multi-agent system built on LangGraph. Each agent specializes in a part of the analysis — routing, research, calculation, and synthesis.</p>
 
             <!-- SVG Graph Diagram -->
-            <div class="flex justify-center mb-12">
-                <svg viewBox="0 0 800 420" class="w-full max-w-3xl" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Arrows (drawn first so they appear behind nodes) -->
-                    <!-- User → Router -->
-                    <line x1="100" y1="200" x2="218" y2="200" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
-                    <!-- Router → Researcher -->
-                    <line x1="322" y1="200" x2="438" y2="120" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
-                    <!-- Router → Analyst -->
-                    <line x1="322" y1="200" x2="438" y2="280" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
-                    <!-- Researcher → Strategist -->
-                    <line x1="562" y1="120" x2="648" y2="200" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
-                    <!-- Analyst → Strategist -->
-                    <line x1="562" y1="280" x2="648" y2="200" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
-
-                    <!-- Tool labels on arrows -->
-                    <!-- Researcher tools -->
-                    <line x1="500" y1="90" x2="500" y2="55" stroke="#374151" stroke-width="1.5" stroke-dasharray="4"/>
-                    <rect x="420" y="25" width="160" height="28" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1"/>
-                    <text x="500" y="44" text-anchor="middle" fill="#9ca3af" font-size="11" font-family="sans-serif">FAISS + Tavily + yfinance</text>
-
-                    <!-- Analyst tools -->
-                    <line x1="500" y1="310" x2="500" y2="345" stroke="#374151" stroke-width="1.5" stroke-dasharray="4"/>
-                    <rect x="430" y="348" width="140" height="28" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1"/>
-                    <text x="500" y="367" text-anchor="middle" fill="#9ca3af" font-size="11" font-family="sans-serif">Python Math REPL</text>
-
-                    <!-- Strategist output -->
-                    <line x1="752" y1="200" x2="785" y2="200" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
-
-                    <!-- Arrow marker -->
+            <div class="flex justify-center mb-16">
+                <svg viewBox="0 0 820 440" class="w-full max-w-4xl" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                             <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
                         </marker>
+                        <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+                        </marker>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="3" result="blur"/>
+                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
                     </defs>
 
-                    <!-- User Node -->
-                    <rect x="30" y="175" width="140" height="50" rx="12" fill="#1f2937" stroke="#6b7280" stroke-width="1.5"/>
-                    <text x="100" y="205" text-anchor="middle" fill="#e5e7eb" font-size="14" font-weight="600" font-family="sans-serif">Your Query</text>
+                    <!-- Flow arrows with animated dashes -->
+                    <line x1="115" y1="210" x2="218" y2="210" stroke="#4b5563" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="6,3"/>
+                    <line x1="340" y1="195" x2="438" y2="130" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6,3"/>
+                    <line x1="340" y1="225" x2="438" y2="290" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6,3"/>
+                    <line x1="575" y1="130" x2="648" y2="200" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6,3"/>
+                    <line x1="575" y1="290" x2="648" y2="220" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6,3"/>
+                    <line x1="775" y1="210" x2="810" y2="210" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-green)"/>
 
-                    <!-- Router Node -->
-                    <rect x="220" y="172" width="100" height="56" rx="12" fill="#1f2937" stroke="#10b981" stroke-width="2"/>
-                    <text x="270" y="196" text-anchor="middle" fill="#10b981" font-size="13" font-weight="700" font-family="sans-serif">Router</text>
-                    <text x="270" y="214" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">Intent Analysis</text>
+                    <!-- Tool connections (dashed) -->
+                    <line x1="510" y1="98" x2="510" y2="58" stroke="#374151" stroke-width="1.5" stroke-dasharray="4"/>
+                    <line x1="510" y1="322" x2="510" y2="362" stroke="#374151" stroke-width="1.5" stroke-dasharray="4"/>
 
-                    <!-- Researcher Node -->
-                    <rect x="440" y="92" width="120" height="56" rx="12" fill="#1f2937" stroke="#3b82f6" stroke-width="2"/>
-                    <text x="500" y="116" text-anchor="middle" fill="#3b82f6" font-size="13" font-weight="700" font-family="sans-serif">Researcher</text>
-                    <text x="500" y="134" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">RAG + Web Search</text>
+                    <!-- Tool labels -->
+                    <rect x="415" y="25" width="190" height="32" rx="8" fill="#1f2937" stroke="#3b82f6" stroke-width="1" opacity="0.8"/>
+                    <text x="510" y="46" text-anchor="middle" fill="#93c5fd" font-size="11" font-family="sans-serif">FAISS + Tavily + yfinance</text>
 
-                    <!-- Analyst Node -->
-                    <rect x="440" y="252" width="120" height="56" rx="12" fill="#1f2937" stroke="#f59e0b" stroke-width="2"/>
-                    <text x="500" y="276" text-anchor="middle" fill="#f59e0b" font-size="13" font-weight="700" font-family="sans-serif">Analyst</text>
-                    <text x="500" y="294" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">EMI, SIP, Tax Calc</text>
+                    <rect x="430" y="365" width="160" height="32" rx="8" fill="#1f2937" stroke="#f59e0b" stroke-width="1" opacity="0.8"/>
+                    <text x="510" y="386" text-anchor="middle" fill="#fcd34d" font-size="11" font-family="sans-serif">Python Math REPL</text>
 
-                    <!-- Strategist Node -->
-                    <rect x="650" y="172" width="120" height="56" rx="12" fill="#1f2937" stroke="#10b981" stroke-width="2"/>
-                    <text x="710" y="196" text-anchor="middle" fill="#10b981" font-size="13" font-weight="700" font-family="sans-serif">Strategist</text>
-                    <text x="710" y="214" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">Final Advice</text>
+                    <!-- Nodes -->
+                    <!-- User -->
+                    <rect class="node-hover" x="20" y="185" width="95" height="50" rx="14" fill="#1f2937" stroke="#6b7280" stroke-width="1.5"/>
+                    <text x="67" y="215" text-anchor="middle" fill="#e5e7eb" font-size="13" font-weight="600" font-family="sans-serif">Query</text>
+
+                    <!-- Router -->
+                    <rect class="node-hover" x="220" y="180" width="120" height="60" rx="14" fill="#1f2937" stroke="#10b981" stroke-width="2.5" filter="url(#glow)"/>
+                    <text x="280" y="206" text-anchor="middle" fill="#10b981" font-size="14" font-weight="700" font-family="sans-serif">Router</text>
+                    <text x="280" y="224" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">Intent Analysis</text>
+
+                    <!-- Researcher -->
+                    <rect class="node-hover" x="440" y="98" width="135" height="60" rx="14" fill="#1f2937" stroke="#3b82f6" stroke-width="2.5" filter="url(#glow)"/>
+                    <text x="507" y="124" text-anchor="middle" fill="#3b82f6" font-size="14" font-weight="700" font-family="sans-serif">Researcher</text>
+                    <text x="507" y="142" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">RAG + Web Search</text>
+
+                    <!-- Analyst -->
+                    <rect class="node-hover" x="440" y="262" width="135" height="60" rx="14" fill="#1f2937" stroke="#f59e0b" stroke-width="2.5" filter="url(#glow)"/>
+                    <text x="507" y="288" text-anchor="middle" fill="#f59e0b" font-size="14" font-weight="700" font-family="sans-serif">Analyst</text>
+                    <text x="507" y="306" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">EMI, SIP, Tax Calc</text>
+
+                    <!-- Strategist -->
+                    <rect class="node-hover" x="650" y="180" width="125" height="60" rx="14" fill="#1f2937" stroke="#10b981" stroke-width="2.5" filter="url(#glow)"/>
+                    <text x="712" y="206" text-anchor="middle" fill="#10b981" font-size="14" font-weight="700" font-family="sans-serif">Strategist</text>
+                    <text x="712" y="224" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">Final Advice</text>
                 </svg>
             </div>
 
             <!-- Agent Descriptions -->
-            <div class="grid md:grid-cols-4 gap-4 text-sm">
-                <div class="bg-gray-800/30 rounded-lg p-4 border-t-2 border-emerald-500">
-                    <h4 class="font-semibold text-emerald-400 mb-1">Router</h4>
-                    <p class="text-gray-400">Analyzes your question and decides what's needed — research, calculations, or both.</p>
+            <div class="grid md:grid-cols-4 gap-5 text-sm">
+                <div class="card-hover bg-gray-800/30 rounded-xl p-5 border border-gray-700/50 border-t-2 border-t-emerald-500">
+                    <h4 class="font-semibold text-emerald-400 mb-2 text-base">Router</h4>
+                    <p class="text-gray-400 leading-relaxed">Analyzes intent — does this need research, a calculation, or both? Routes to the right agents. Never skips to clarification; always gathers evidence first.</p>
                 </div>
-                <div class="bg-gray-800/30 rounded-lg p-4 border-t-2 border-blue-500">
-                    <h4 class="font-semibold text-blue-400 mb-1">Researcher</h4>
-                    <p class="text-gray-400">Searches your uploaded documents (RAG), the knowledge base, and the web via Tavily for real-time data.</p>
+                <div class="card-hover bg-gray-800/30 rounded-xl p-5 border border-gray-700/50 border-t-2 border-t-blue-500">
+                    <h4 class="font-semibold text-blue-400 mb-2 text-base">Researcher</h4>
+                    <p class="text-gray-400 leading-relaxed">Searches 3 sources: your uploaded documents via FAISS (RAG), the financial knowledge base, and the live web via Tavily for prices and market data.</p>
                 </div>
-                <div class="bg-gray-800/30 rounded-lg p-4 border-t-2 border-amber-500">
-                    <h4 class="font-semibold text-amber-400 mb-1">Analyst</h4>
-                    <p class="text-gray-400">Runs financial calculations — EMI, SIP returns, tax savings, ROI — using your actual numbers.</p>
+                <div class="card-hover bg-gray-800/30 rounded-xl p-5 border border-gray-700/50 border-t-2 border-t-amber-500">
+                    <h4 class="font-semibold text-amber-400 mb-2 text-base">Analyst</h4>
+                    <p class="text-gray-400 leading-relaxed">The LLM writes the formula, Python executes it exactly. EMI, SIP future value, tax liability, ROI — no guessing, no rounding errors.</p>
                 </div>
-                <div class="bg-gray-800/30 rounded-lg p-4 border-t-2 border-emerald-500">
-                    <h4 class="font-semibold text-emerald-400 mb-1">Strategist</h4>
-                    <p class="text-gray-400">Synthesizes everything into a direct, personalized recommendation with real opinions.</p>
+                <div class="card-hover bg-gray-800/30 rounded-xl p-5 border border-gray-700/50 border-t-2 border-t-emerald-500">
+                    <h4 class="font-semibold text-emerald-400 mb-2 text-base">Strategist</h4>
+                    <p class="text-gray-400 leading-relaxed">Combines research + calculations + your profile into a direct, opinionated recommendation. Uses your actual numbers, gives real opinions.</p>
                 </div>
             </div>
+        </div>
+    </section>
 
+    <!-- Deep Dive: RAG -->
+    <section class="py-24 px-6 border-t border-gray-800">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4 text-gray-200">How RAG Retrieval Works</h2>
+            <p class="text-gray-400 text-center mb-16 max-w-2xl mx-auto">When you upload a document, it's chunked, embedded, and stored. When you ask a question, we find the most relevant chunks.</p>
+
+            <div class="grid md:grid-cols-2 gap-12 items-start">
+                <!-- Left: Visual -->
+                <div>
+                    <svg viewBox="0 0 400 500" class="w-full" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Document -->
+                        <rect x="20" y="10" width="160" height="60" rx="10" fill="#1f2937" stroke="#6b7280" stroke-width="1.5"/>
+                        <text x="100" y="36" text-anchor="middle" fill="#e5e7eb" font-size="12" font-weight="600" font-family="sans-serif">Salary_slip.pdf</text>
+                        <text x="100" y="54" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">Uploaded Document</text>
+
+                        <!-- Arrow down -->
+                        <line x1="100" y1="70" x2="100" y2="100" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+                        <!-- Chunks -->
+                        <text x="100" y="120" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">Split into chunks</text>
+                        <rect x="15" y="135" width="170" height="32" rx="6" fill="#1e3a2f" stroke="#10b981" stroke-width="1"/>
+                        <text x="100" y="155" text-anchor="middle" fill="#6ee7b7" font-size="9" font-family="monospace">"Salary: 300000/month..."</text>
+                        <rect x="15" y="175" width="170" height="32" rx="6" fill="#1e3a2f" stroke="#10b981" stroke-width="1"/>
+                        <text x="100" y="195" text-anchor="middle" fill="#6ee7b7" font-size="9" font-family="monospace">"HRA: 12000, PF: 18000..."</text>
+                        <rect x="15" y="215" width="170" height="32" rx="6" fill="#1e3a2f" stroke="#10b981" stroke-width="1"/>
+                        <text x="100" y="235" text-anchor="middle" fill="#6ee7b7" font-size="9" font-family="monospace">"Tax deducted: 45000..."</text>
+
+                        <!-- Arrow down -->
+                        <line x1="100" y1="255" x2="100" y2="285" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+                        <!-- Embedding -->
+                        <rect x="20" y="290" width="160" height="45" rx="10" fill="#1f2937" stroke="#3b82f6" stroke-width="1.5"/>
+                        <text x="100" y="310" text-anchor="middle" fill="#93c5fd" font-size="11" font-weight="600" font-family="sans-serif">Embedding Model</text>
+                        <text x="100" y="326" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="sans-serif">all-MiniLM-L6-v2</text>
+
+                        <!-- Arrow down -->
+                        <line x1="100" y1="335" x2="100" y2="365" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+                        <!-- FAISS -->
+                        <rect x="20" y="370" width="160" height="45" rx="10" fill="#1f2937" stroke="#8b5cf6" stroke-width="2"/>
+                        <text x="100" y="390" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700" font-family="sans-serif">FAISS Index</text>
+                        <text x="100" y="406" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="sans-serif">Per-user vector store</text>
+
+                        <!-- Query side -->
+                        <rect x="230" y="10" width="150" height="50" rx="10" fill="#1f2937" stroke="#f59e0b" stroke-width="1.5"/>
+                        <text x="305" y="32" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="600" font-family="sans-serif">"What's my salary?"</text>
+                        <text x="305" y="48" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="sans-serif">User Query</text>
+
+                        <!-- Arrow down to embedding -->
+                        <line x1="305" y1="60" x2="305" y2="295" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,3"/>
+                        <line x1="305" y1="295" x2="182" y2="310" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="6,3"/>
+
+                        <!-- Arrow from FAISS to result -->
+                        <line x1="180" y1="392" x2="230" y2="392" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+
+                        <!-- Result -->
+                        <rect x="232" y="370" width="155" height="55" rx="10" fill="#1e3a2f" stroke="#10b981" stroke-width="2"/>
+                        <text x="310" y="390" text-anchor="middle" fill="#10b981" font-size="10" font-weight="600" font-family="sans-serif">Top Match (0.92)</text>
+                        <text x="310" y="408" text-anchor="middle" fill="#6ee7b7" font-size="9" font-family="monospace">"Salary: 300000/month"</text>
+
+                        <!-- Similarity label -->
+                        <text x="305" y="455" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="sans-serif">Cosine similarity search</text>
+                    </svg>
+                </div>
+
+                <!-- Right: Explanation -->
+                <div class="space-y-6">
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 text-emerald-400 font-bold text-sm border border-gray-700">1</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-200 mb-1">Document Chunking</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">Your uploaded file is split into overlapping chunks of ~1000 characters. Each chunk retains context from surrounding text. Excel rows become "Column: Value" text lines.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 text-blue-400 font-bold text-sm border border-gray-700">2</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-200 mb-1">Vector Embedding</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">Each chunk is converted to a 384-dimensional vector using the MiniLM model. These vectors capture semantic meaning — "salary" and "income" end up close together in vector space.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 text-purple-400 font-bold text-sm border border-gray-700">3</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-200 mb-1">FAISS Storage</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">Vectors are stored in a per-user FAISS index. Each user's documents are completely isolated — your data never mixes with anyone else's.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 text-amber-400 font-bold text-sm border border-gray-700">4</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-200 mb-1">Similarity Search</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">When you ask a question, it's embedded into the same vector space. FAISS finds the closest matching chunks using cosine similarity — retrieving the most relevant parts of your documents.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Deep Dive: Math REPL -->
+    <section class="py-24 px-6 border-t border-gray-800 bg-gradient-to-b from-gray-900 to-gray-950">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4 text-gray-200">Precise Calculations, Not Guesses</h2>
+            <p class="text-gray-400 text-center mb-16 max-w-2xl mx-auto">LLMs can't do math reliably. So the Analyst writes Python code, and a sandboxed REPL executes it with perfect precision.</p>
+
+            <div class="grid md:grid-cols-2 gap-12 items-start">
+                <!-- Left: Explanation -->
+                <div class="space-y-6">
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 text-amber-400 font-bold text-sm border border-gray-700">1</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-200 mb-1">User Asks</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">"What's the EMI for a 50 lakh home loan at 8.5% for 20 years?"</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 text-amber-400 font-bold text-sm border border-gray-700">2</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-200 mb-1">LLM Writes the Formula</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">The Analyst agent translates the question into correct Python code with the right financial formula. It knows EMI, SIP, CAGR, tax slabs, etc.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 text-amber-400 font-bold text-sm border border-gray-700">3</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-200 mb-1">Sandboxed Execution</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">Code runs in a restricted Python environment — only math, numpy, and basic operations allowed. No file access, no network, no imports. Safe and precise.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 text-emerald-400 font-bold text-sm border border-gray-700">4</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-200 mb-1">Exact Result</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">The Strategist gets the precise number and presents it: "Your EMI would be ₹43,391/month — that's 28.9% of your income."</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Code visualization -->
+                <div>
+                    <div class="bg-gray-950 rounded-xl border border-gray-700 overflow-hidden">
+                        <!-- Terminal header -->
+                        <div class="bg-gray-800 px-4 py-2.5 flex items-center gap-2 border-b border-gray-700">
+                            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                            <span class="text-gray-400 text-xs ml-2 font-mono">math_repl.py</span>
+                        </div>
+                        <!-- Code -->
+                        <div class="p-5 font-mono text-sm leading-7 overflow-x-auto">
+                            <div><span class="text-gray-500"># LLM generates this code:</span></div>
+                            <div><span class="text-blue-400">P</span> <span class="text-gray-500">=</span> <span class="text-amber-300">5000000</span>  <span class="text-gray-600"># ₹50 lakh</span></div>
+                            <div><span class="text-blue-400">R</span> <span class="text-gray-500">=</span> <span class="text-amber-300">8.5</span> <span class="text-gray-500">/</span> <span class="text-amber-300">100</span> <span class="text-gray-500">/</span> <span class="text-amber-300">12</span>  <span class="text-gray-600"># monthly rate</span></div>
+                            <div><span class="text-blue-400">N</span> <span class="text-gray-500">=</span> <span class="text-amber-300">20</span> <span class="text-gray-500">*</span> <span class="text-amber-300">12</span>  <span class="text-gray-600"># 240 months</span></div>
+                            <div class="mt-3"><span class="text-blue-400">result</span> <span class="text-gray-500">=</span> <span class="text-gray-300">(P * R * (1+R)**N)</span></div>
+                            <div class="pl-8"><span class="text-gray-500">/</span> <span class="text-gray-300">((1+R)**N - 1)</span></div>
+                            <div class="mt-4 pt-3 border-t border-gray-800">
+                                <span class="text-gray-500">>>> </span><span class="text-emerald-400 font-bold">₹43,391.07</span><span class="text-gray-500"> /month</span>
+                            </div>
+                            <div class="mt-1">
+                                <span class="text-gray-500">>>> total: </span><span class="text-gray-300">₹1,04,13,856</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">>>> interest: </span><span class="text-red-400">₹54,13,856</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-gray-500 text-xs mt-3 text-center">The LLM writes formulas. Python executes them. You get exact numbers.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="py-24 px-6 border-t border-gray-800 text-center">
+        <div class="max-w-2xl mx-auto">
+            <h2 class="text-3xl font-bold mb-4 text-gray-200">Ready to take control of your finances?</h2>
+            <p class="text-gray-400 mb-8">Upload your documents, ask your questions, get real answers.</p>
+            <a href="/signup"
+                class="cta-glow inline-block px-10 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg shadow-emerald-900/30 hover:shadow-emerald-800/50 hover:scale-105">
+                Get Started Free
+            </a>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="py-6 px-6 border-t border-gray-800 text-center text-gray-500 text-sm">
-        SentinelFinance — Built with LangGraph, Groq, and FAISS
+    <footer class="py-8 px-6 border-t border-gray-800">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <span class="text-gray-500 text-sm">SentinelFinance</span>
+            <div class="flex gap-6 text-gray-500 text-sm">
+                <span>Built with LangGraph</span>
+                <span>Powered by Groq</span>
+                <span>Search by Tavily</span>
+            </div>
+        </div>
     </footer>
 
 </div>

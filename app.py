@@ -348,7 +348,7 @@ def main():
                     calculations = result.get("calculations", [])
                     if calculations:
                         metadata["calculations"] = calculations
-                        with st.expander("📊 Calculations Performed"):
+                        with st.expander("Calculations Performed"):
                             for calc in calculations:
                                 if calc.get("success"):
                                     st.code(calc.get("formula", ""))

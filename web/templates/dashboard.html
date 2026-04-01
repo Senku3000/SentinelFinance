@@ -76,8 +76,59 @@
             <div class="flex {% if msg.role == 'user' %}justify-end{% else %}justify-start{% endif %}">
                 <div class="max-w-2xl rounded-lg px-4 py-3 {% if msg.role == 'user' %}bg-emerald-700{% else %}bg-gray-700{% endif %}">
                     <div class="text-sm whitespace-pre-wrap">{{ msg.content }}</div>
-                    {% if msg.metadata and msg.metadata.confidence %}
-                    <div class="text-xs text-gray-400 mt-1">Confidence: {{ (msg.metadata.confidence * 100)|round(1) }}%</div>
+
+                    {% if msg.role == 'assistant' and msg.metadata %}
+                    <!-- Tool badges -->
+                    {% if msg.metadata.tool_calls %}
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        {% set tools_used = [] %}
+                        {% for tc in msg.metadata.tool_calls %}
+                            {% if tc.tool == 'vector_db_tool' and 'FAISS' not in tools_used %}
+                                <span class="px-2 py-0.5 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700/50">FAISS RAG</span>
+                                {% if tools_used.append('FAISS') %}{% endif %}
+                            {% endif %}
+                            {% if tc.tool == 'user_document_search' and 'UserDocs' not in tools_used %}
+                                <span class="px-2 py-0.5 text-xs rounded-full bg-blue-900/50 text-blue-300 border border-blue-700/50">Personal Docs</span>
+                                {% if tools_used.append('UserDocs') %}{% endif %}
+                            {% endif %}
+                            {% if tc.tool == 'search_tool' and 'Search' not in tools_used %}
+                                <span class="px-2 py-0.5 text-xs rounded-full bg-cyan-900/50 text-cyan-300 border border-cyan-700/50">Tavily Search</span>
+                                {% if tools_used.append('Search') %}{% endif %}
+                            {% endif %}
+                            {% if tc.tool == 'math_tool' and 'Math' not in tools_used %}
+                                <span class="px-2 py-0.5 text-xs rounded-full bg-amber-900/50 text-amber-300 border border-amber-700/50">Math REPL</span>
+                                {% if tools_used.append('Math') %}{% endif %}
+                            {% endif %}
+                            {% if tc.tool == 'user_vault_tool' and 'Vault' not in tools_used %}
+                                <span class="px-2 py-0.5 text-xs rounded-full bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">User Profile</span>
+                                {% if tools_used.append('Vault') %}{% endif %}
+                            {% endif %}
+                            {% if tc.tool == 'synthesis' and 'Synth' not in tools_used %}
+                                <span class="px-2 py-0.5 text-xs rounded-full bg-gray-800 text-gray-400 border border-gray-600/50">Strategist</span>
+                                {% if tools_used.append('Synth') %}{% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Calculations detail -->
+                    {% if msg.metadata.calculations %}
+                    {% for calc in msg.metadata.calculations %}
+                    {% if calc.success %}
+                    <details class="mt-2">
+                        <summary class="text-xs text-amber-400 cursor-pointer hover:text-amber-300">View calculation</summary>
+                        <div class="mt-1 p-2 bg-gray-800 rounded text-xs font-mono">
+                            <div class="text-gray-400">{{ calc.formula }}</div>
+                            <div class="text-emerald-400 mt-1">= {{ calc.result }}</div>
+                        </div>
+                    </details>
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if msg.metadata.confidence %}
+                    <div class="text-xs text-gray-500 mt-1">Confidence: {{ (msg.metadata.confidence * 100)|round(1) }}%</div>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>

@@ -26,45 +26,44 @@ def _extract_profile_from_text(profile: dict, text: str) -> tuple[dict, bool]:
     updated = False
     text_lower = text.lower()
 
-    # Match patterns like: income 1L, salary 1.5 lakh, earn 100000, income is 1L
+    # Match patterns like: income 1L, salary is 1.5 lakh, earn around 100000, expenses around 30k
+    # Allow filler words (is, around, about, of, roughly) between keyword and number
+    filler = r"[\s\w]*?"  # matches spaces and filler words (non-greedy)
+    amount = r"(\d+(?:\.\d+)?)\s*(l|lac|lakh|k)?"
+
     inc_match = re.search(
-        r"(?:income|salary|earn|earning|make)\s*(?:is\s*)?(\d+(?:\.\d+)?)\s*(l|lac|lakh|k)?",
-        text_lower
+        r"(?:income|salary|earn|earning|make)" + filler + amount, text_lower
     )
     exp_match = re.search(
-        r"(?:expense|spend|spending|expenditure)\s*(?:is\s*)?(\d+(?:\.\d+)?)\s*(l|lac|lakh|k)?",
-        text_lower
+        r"(?:expense|expenses|spend|spending|expenditure)" + filler + amount, text_lower
     )
 
-    if inc_match:
-        val = float(inc_match.group(1))
-        suffix = inc_match.group(2) or ""
+    def _parse_amount(match):
+        val = float(match.group(1))
+        suffix = match.group(2) or ""
         if suffix in ("l", "lac", "lakh"):
             val *= 100000
         elif suffix == "k":
             val *= 1000
-        profile.setdefault("income", {})["monthly"] = int(val)
-        profile["income"]["annual"] = int(val) * 12
+        return int(val)
+
+    if inc_match:
+        profile.setdefault("income", {})["monthly"] = _parse_amount(inc_match)
+        profile["income"]["annual"] = profile["income"]["monthly"] * 12
         updated = True
 
     if exp_match:
-        val = float(exp_match.group(1))
-        suffix = exp_match.group(2) or ""
-        if suffix in ("l", "lac", "lakh"):
-            val *= 100000
-        elif suffix == "k":
-            val *= 1000
-        profile.setdefault("expenses", {})["monthly"] = int(val)
+        profile.setdefault("expenses", {})["monthly"] = _parse_amount(exp_match)
         updated = True
 
-    # Risk tolerance
-    if re.search(r"risk.?tak|aggressive|high risk", text_lower):
+    # Risk tolerance — match flexible phrasing
+    if re.search(r"risk.?tak|aggressive|high.{0,15}risk|risk.{0,15}high", text_lower):
         profile["risk_tolerance"] = "aggressive"
         updated = True
-    elif re.search(r"moderate|balanced|medium risk", text_lower):
+    elif re.search(r"moderate|balanced|medium.{0,15}risk|risk.{0,15}medium", text_lower):
         profile["risk_tolerance"] = "moderate"
         updated = True
-    elif re.search(r"conservative|safe|low risk|no risk|risk.?averse", text_lower):
+    elif re.search(r"conservative|safe|low.{0,15}risk|risk.{0,15}low|no risk|risk.?averse", text_lower):
         profile["risk_tolerance"] = "conservative"
         updated = True
 
@@ -191,6 +190,7 @@ def chat_submit(
     metadata = {
         "confidence": result.get("confidence", 0.5),
         "calculations": result.get("calculations", []),
+        "tool_calls": result.get("tool_calls", []),
     }
 
     # Save assistant message
