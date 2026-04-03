@@ -2,6 +2,15 @@
 
 An AI-powered financial adviser built with LangGraph. Upload your financial documents, ask questions, and get personalized advice based on your actual numbers.
 
+
+## Demo
+
+[![Watch the demo](https://img.youtube.com/vi/Jsm4vG9dK10/0.jpg)](https://youtu.be/Jsm4vG9dK10)
+
+A 10-minute walkthrough covering architecture, multi-agent pipeline, and real-time usage.
+
+---
+
 ## Features
 
 - **Document Upload** — Salary slips, tax returns, expense sheets (PDF, Excel, CSV). AI extracts income, expenses, investments, and tax details automatically.
@@ -20,6 +29,13 @@ Query → Router → Researcher (FAISS + Tavily + yfinance)
               → Analyst (Python Math REPL)
               → Strategist → Personalized Answer
 ```
+
+## Use Cases
+
+- Financial planning based on real income and expenses
+- Tax optimization insights
+- Investment decision support
+- Loan and EMI analysis
 
 ## Tech Stack
 
@@ -67,10 +83,12 @@ Open `http://localhost:8000`
 ```
 fin_adviser/
 ├── main.py                 # FastAPI entry point
+├── ingest_documents.py     # One-time knowledge base ingestion
 ├── web/
 │   ├── routes.py           # Page routes + form handlers
 │   ├── auth.py             # Session cookies
 │   ├── dependencies.py     # Auth middleware
+│   ├── static/             # CSS
 │   └── templates/          # Jinja2 HTML (home, login, signup, dashboard, profile)
 ├── db/
 │   ├── database.py         # SQLAlchemy + MySQL
@@ -81,8 +99,8 @@ fin_adviser/
 │   ├── nodes.py            # Router, Researcher, Analyst, Strategist
 │   ├── state.py            # State management
 │   ├── config.py           # Configuration
-│   ├── tools/              # SearchTool, MathTool, VectorDBTool, UserVaultTool
-│   └── ingestion/          # DocumentParser, UserEmbedder, LLMExtractor
+│   ├── tools/              # SearchTool, MathTool, VectorDBTool, UserVaultTool, UserDocumentTool
+│   └── ingestion/          # DocumentParser, PdfParser, UserEmbedder, LLMExtractor
 ├── data/
 │   └── documents/          # Knowledge base (tax, investments, loans)
 └── requirements.txt
@@ -90,4 +108,4 @@ fin_adviser/
 
 ## License
 
-MIT
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
