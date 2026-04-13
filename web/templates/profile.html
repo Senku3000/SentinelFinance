@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile - SentinelFinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-8 px-4">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-emerald-400">Edit Profile</h2>
+        <a href="/dashboard" class="text-sm text-gray-400 hover:text-gray-300">Back to Dashboard</a>
+    </div>
+
+    <form method="POST" action="/profile" class="space-y-6">
+
+        <!-- Income -->
+        <div class="bg-gray-800 rounded-lg p-5">
+            <h3 class="text-lg font-semibold mb-3">Income</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Monthly Income (₹)</label>
+                    <input type="number" name="monthly_income"
+                        value="{{ profile.income.monthly or '' }}"
+                        placeholder="e.g. 150000"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Source</label>
+                    <input type="text" name="income_source"
+                        value="{{ profile.income.source or '' }}"
+                        placeholder="e.g. salary, business"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+        </div>
+
+        <!-- Expenses -->
+        <div class="bg-gray-800 rounded-lg p-5">
+            <h3 class="text-lg font-semibold mb-3">Expenses</h3>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Monthly Expenses (₹)</label>
+                <input type="number" name="monthly_expenses"
+                    value="{{ profile.expenses.monthly or '' }}"
+                    placeholder="e.g. 50000"
+                    class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-emerald-500">
+            </div>
+        </div>
+
+        <!-- Risk Tolerance -->
+        <div class="bg-gray-800 rounded-lg p-5">
+            <h3 class="text-lg font-semibold mb-3">Risk Tolerance</h3>
+            <select name="risk_tolerance"
+                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-emerald-500">
+                <option value="" {% if not profile.risk_tolerance %}selected{% endif %}>Not set</option>
+                <option value="conservative" {% if profile.risk_tolerance == 'conservative' %}selected{% endif %}>Conservative</option>
+                <option value="moderate" {% if profile.risk_tolerance == 'moderate' %}selected{% endif %}>Moderate</option>
+                <option value="aggressive" {% if profile.risk_tolerance == 'aggressive' %}selected{% endif %}>Aggressive</option>
+            </select>
+        </div>
+
+        <button type="submit"
+            class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold transition">
+            Save Profile
+        </button>
+    </form>
+</div>
+{% endblock %}
