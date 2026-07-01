@@ -22,10 +22,8 @@ def create_financial_advisory_graph() -> StateGraph:
     """
     Create and configure the LangGraph workflow
     """
-    # Create graph
     workflow = StateGraph(FinancialAdvisoryState)
     
-    # Add nodes
     workflow.add_node("router", router_node)
     workflow.add_node("clarifier", clarifier_node)
     workflow.add_node("researcher", researcher_node)
@@ -33,10 +31,8 @@ def create_financial_advisory_graph() -> StateGraph:
     workflow.add_node("analyst", analyst_node)
     workflow.add_node("strategist", strategist_node)
     
-    # Set entry point
     workflow.set_entry_point("router")
     
-    # Add conditional edges
     workflow.add_conditional_edges(
         "router",
         should_continue,
@@ -102,7 +98,6 @@ def create_financial_advisory_graph() -> StateGraph:
         }
     )
     
-    # Compile graph with checkpointing
     memory = MemorySaver()
     app = workflow.compile(checkpointer=memory)
     
@@ -127,13 +122,10 @@ def run_query(
     Returns:
         Final state with recommendation
     """
-    # Validate config
     Config.validate()
     
-    # Create graph
     app = create_financial_advisory_graph()
     
-    # Create initial state
     initial_state = create_initial_state(
         query,
         user_id,
@@ -142,27 +134,21 @@ def run_query(
         asked_clarifications=asked_clarifications
     )
 
-    # Load user's document metadata so nodes know what's available
     try:
         user_embedder = UserEmbedder()
         initial_state["user_documents"] = user_embedder.list_user_documents(user_id)
     except Exception:
         initial_state["user_documents"] = []
     
-    # Run graph
     config = config or {"configurable": {"thread_id": user_id}}
     
-    # Use invoke for simpler execution (returns final state directly)
     try:
         final_state = app.invoke(initial_state, config)
         state_data = final_state
     except Exception as e:
-        # Fallback: try streaming
         final_state = None
         for state in app.stream(initial_state, config):
-            # State is a dict with node names as keys
             if isinstance(state, dict):
-                # Get the last node's output
                 node_names = list(state.keys())
                 if node_names:
                     final_state = state[node_names[-1]]

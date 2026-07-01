@@ -49,7 +49,6 @@ class SearchTool(BaseTool):
         Returns:
             Dictionary with market data
         """
-        # Check cache first
         cache_key = f"{query}_{data_type or ''}"
         if cache_key in self.cache:
             cached_data = self.cache[cache_key]
@@ -64,16 +63,13 @@ class SearchTool(BaseTool):
             elif "fd" in data_type.lower() or "fixed_deposit" in data_type.lower():
                 result = self._get_fd_rates()
             elif "stock" in data_type.lower() or ":" in query:
-                # Format: "stock_price:SYMBOL" or "stock:SYMBOL"
                 symbol = query.split(":")[-1].strip() if ":" in query else query.replace("stock", "").strip()
                 result = self._get_stock_price(symbol)
             elif "mutual_fund" in data_type.lower() or "mf" in data_type.lower():
                 result = self._get_mutual_fund_nav(query)
             else:
-                # Fallback: web search via Tavily for anything else
                 result = self._web_search(query)
             
-            # Cache the result
             if result.get("success"):
                 self.cache[cache_key] = result
             
@@ -90,12 +86,10 @@ class SearchTool(BaseTool):
     def _get_gold_rate(self) -> Dict[str, Any]:
         """Get current gold rate"""
         try:
-            # Using Yahoo Finance for gold futures
             gold = yf.Ticker("GC=F")  # Gold futures
             data = gold.history(period="1d")
             
             if data.empty:
-                # Fallback: Use a simple API or return approximate rates
                 return {
                     "success": True,
                     "data": {
@@ -107,9 +101,7 @@ class SearchTool(BaseTool):
                     "timestamp": datetime.now().isoformat()
                 }
             
-            # Get latest price (convert from USD/oz to INR/gm approximately)
             latest_price = data['Close'].iloc[-1]
-            # Rough conversion: 1 oz = 31.1 gm, USD to INR ~83
             price_per_gm_inr = (latest_price / 31.1) * 83
             
             return {
@@ -132,8 +124,6 @@ class SearchTool(BaseTool):
     
     def _get_fd_rates(self) -> Dict[str, Any]:
         """Get current FD rates from major banks"""
-        # Note: In production, you'd fetch from bank APIs or financial data providers
-        # For now, return approximate rates
         return {
             "success": True,
             "data": {
@@ -150,7 +140,6 @@ class SearchTool(BaseTool):
     def _get_stock_price(self, symbol: str) -> Dict[str, Any]:
         """Get current stock price"""
         try:
-            # Add .NS for NSE stocks if not present
             if not symbol.endswith(".NS") and not "." in symbol:
                 symbol = f"{symbol}.NS"
             
@@ -236,7 +225,6 @@ class SearchTool(BaseTool):
 
     def _get_mutual_fund_nav(self, query: str) -> Dict[str, Any]:
         """Get mutual fund NAV"""
-        # This would require integration with AMFI or mutual fund APIs
         return {
             "success": False,
             "error": "Mutual fund NAV lookup not yet implemented. Use fund house websites.",

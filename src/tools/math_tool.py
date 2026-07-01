@@ -41,14 +41,10 @@ class MathTool(BaseTool):
         Returns:
             Dictionary with result, formula, and metadata
         """
-        # Capture stdout
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
         
         try:
-            # Restricted execution - only allow safe operations
-            # In production, use a more robust sandbox
-            # Create restricted globals
             restricted_globals = {
                 '__builtins__': {
                     'abs': abs, 'round': round, 'min': min, 'max': max,
@@ -59,7 +55,6 @@ class MathTool(BaseTool):
                 'math': __import__('math'),
             }
             
-            # Try importing numpy and pandas if available
             try:
                 restricted_globals['numpy'] = __import__('numpy')
                 restricted_globals['np'] = restricted_globals['numpy']
@@ -72,21 +67,16 @@ class MathTool(BaseTool):
             except ImportError:
                 pass
             
-            # Execute the code - use exec for statements, eval for expressions
             local_vars = {}
             if "=" in code or "\n" in code:
-                # It's a statement, use exec
                 exec(code, restricted_globals, local_vars)
-                # Check both local_vars and restricted_globals for result
                 if 'result' in local_vars:
                     result = local_vars['result']
                 else:
                     result = restricted_globals.get('result')
             else:
-                # It's an expression, use eval
                 result = eval(code, restricted_globals, {})
             
-            # Get any printed output
             output = captured_output.getvalue()
             
             return {

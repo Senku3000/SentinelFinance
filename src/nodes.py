@@ -3,22 +3,17 @@
 import json
 import re
 from typing import Dict, Any, Optional
-from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 
 from .state import FinancialAdvisoryState
 from .config import Config
+from .llm import create_chat_llm
 from .tools import MathTool, SearchTool, VectorDBTool, UserVaultTool
 from .ingestion.user_embedder import UserEmbedder
 
 
-# Initialize LLM
-llm = ChatGroq(
-    model=Config.GROQ_MODEL,
-    groq_api_key=Config.GROQ_API_KEY,
-    temperature=0.3
-)
+llm = create_chat_llm(temperature=0.3)
 
 def _extract_json_payload(text: str) -> Optional[str]:
     """Extract the first JSON object or array from text using bracket balancing."""
@@ -56,6 +51,76 @@ def _load_json_from_text(text: str) -> Optional[Any]:
         return None
 
 
+def _format_indian_number(value: float, decimals: int = 0) -> str:
+    """Format a number with Indian digit grouping."""
+    rounded = round(float(value), decimals)
+    sign = "-" if rounded < 0 else ""
+    number = f"{abs(rounded):.{decimals}f}" if decimals else str(int(abs(rounded)))
+    whole, _, fraction = number.partition(".")
+    if len(whole) > 3:
+        whole = ",".join([whole[:-3][max(i - 2, 0):i] for i in range(len(whole[:-3]) % 2 or 2, len(whole[:-3]) + 1, 2)] + [whole[-3:]])
+    return f"{sign}{whole}{'.' + fraction if fraction else ''}"
+
+
+def _format_inr(value: float, decimals: int = 0) -> str:
+    """Format a rupee value for strategist context."""
+    return f"₹{_format_indian_number(value, decimals)}"
+
+
+def _format_lakh(value: float) -> str:
+    """Format a rupee value in lakhs, e.g. 1800000 -> ₹18L."""
+    lakhs = float(value) / 100000
+    label = f"{lakhs:.2f}".rstrip("0").rstrip(".")
+    return f"₹{label}L"
+
+
+def _format_calculation_for_context(calc: Dict[str, Any]) -> str:
+    """Create human-readable calculation context so the strategist doesn't re-parse raw numbers."""
+    description = calc.get("description", "Calculation")
+    result = calc.get("result")
+    if not calc.get("success") or not isinstance(result, dict):
+        return f"- {description}: {result if result is not None else 'Unavailable'}"
+
+    if "future_value_percent_of_annual_salary" in result:
+        return (
+            f"- {description}: monthly SIP {_format_inr(result['monthly_sip'])}; "
+            f"years {result['years']}; annual return {result['annual_return_percent']}%; "
+            f"annual salary {_format_inr(result['annual_salary'])} ({_format_lakh(result['annual_salary'])}); "
+            f"total invested {_format_inr(result['total_invested'])} ({_format_lakh(result['total_invested'])}); "
+            f"future value {_format_inr(result['future_value'], 2)} ({_format_lakh(result['future_value'])}); "
+            f"future value is {result['future_value_percent_of_annual_salary']}% of annual salary; "
+            f"principal invested is {result['total_invested_percent_of_annual_salary']}% of annual salary."
+        )
+
+    if "months_needed_from_surplus" in result:
+        return (
+            f"- {description}: purchase cost {_format_inr(result['purchase_cost'])}; "
+            f"monthly income {_format_inr(result['monthly_income'])}; "
+            f"monthly expenses {_format_inr(result['monthly_expenses'])}; "
+            f"monthly surplus {_format_inr(result['monthly_surplus'])}; "
+            f"cost is {result['cost_percent_of_monthly_surplus']}% of one month's surplus; "
+            f"months needed from surplus {result['months_needed_from_surplus']}; "
+            f"affordable from one month surplus: {result['affordable_from_one_month_surplus']}."
+        )
+
+    if "current_monthly_investment" in result:
+        return (
+            f"- {description}: current monthly investment {_format_inr(result['current_monthly_investment'])}; "
+            f"monthly income {_format_inr(result['monthly_income'])}; "
+            f"investment is {result['investment_percent_of_monthly_income']}% of monthly income."
+        )
+
+    if "monthly_surplus" in result:
+        return (
+            f"- {description}: monthly income {_format_inr(result['monthly_income'])}; "
+            f"monthly expenses {_format_inr(result['monthly_expenses'])}; "
+            f"monthly surplus {_format_inr(result['monthly_surplus'])}; "
+            f"expense ratio {result['expense_ratio_percent']}%."
+        )
+
+    return f"- {description}: {result}"
+
+
 def router_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     """
     Router node: Analyzes user intent and determines routing
@@ -63,7 +128,6 @@ def router_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     state["current_node"] = "router"
     state["iteration_count"] += 1
     
-    # Check max iterations
     if state["iteration_count"] >= state["max_iterations"]:
         state["next_node"] = "end"
         state["errors"].append("Maximum iterations reached")
@@ -71,7 +135,6 @@ def router_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     
     user_query = state["user_query"]
     
-    # Intent analysis prompt
     intent_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a financial advisory router. Analyze the user's query and determine:
 1. Does this query need research from knowledge base? (tax laws, regulations, principles)
@@ -91,16 +154,13 @@ Respond in JSON format:
     ])
     
     try:
-        # Get intent analysis
         messages = intent_prompt.format_messages(query=user_query)
         response = llm.invoke(messages)
         
-        # Parse response (simple extraction - could be improved)
         response_text = response.content
         
         intent_data = _load_json_from_text(response_text)
         if not isinstance(intent_data, dict):
-            # Fallback: infer from response text
             intent_data = {
                 "needs_research": "research" in response_text.lower() or "knowledge" in response_text.lower(),
                 "needs_calculation": "calculation" in response_text.lower() or "calculate" in response_text.lower(),
@@ -109,14 +169,24 @@ Respond in JSON format:
                 "query_type": "general"
             }
         
-        # Update state
         state["intent"] = intent_data
         state["needs_research"] = intent_data.get("needs_research", False)
         state["needs_calculation"] = intent_data.get("needs_calculation", False)
         state["needs_user_profile"] = intent_data.get("needs_user_profile", False)
         state["needs_clarification"] = intent_data.get("needs_clarification", False)
+
+        if state["needs_user_profile"] and state.get("user_profile"):
+            state["needs_user_profile"] = False
+
+        profile = state.get("user_profile") or {}
+        existing_investments = profile.get("existing_investments") or {}
+        is_current_investment_query = (
+            any(word in user_query.lower() for word in ["investing", "investment", "invested"])
+            and any(word in user_query.lower() for word in ["current", "currently", "right now", "how much"])
+        )
+        if existing_investments and is_current_investment_query:
+            state["needs_calculation"] = True
         
-        # Determine next node — always gather evidence first, never skip to clarifier
         if state["needs_research"] or state["needs_user_profile"]:
             state["next_node"] = "researcher"
         elif state["needs_calculation"]:
@@ -124,7 +194,6 @@ Respond in JSON format:
         else:
             state["next_node"] = "researcher"  # Default: always research first
         
-        # Log tool call
         state["tool_calls"].append({
             "node": "router",
             "tool": "intent_analysis",
@@ -134,7 +203,6 @@ Respond in JSON format:
         
     except Exception as e:
         state["errors"].append(f"Router error: {str(e)}")
-        # Default routing: go to researcher
         state["next_node"] = "researcher"
         state["needs_research"] = True
     
@@ -149,12 +217,10 @@ def researcher_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     
     user_query = state["user_query"]
     
-    # Initialize tools
     vector_db_tool = VectorDBTool()
     search_tool = SearchTool()
     user_vault_tool = UserVaultTool()
     
-    # Step 1: Generate hypotheses
     hypothesis_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a financial researcher. Generate 2-3 testable hypotheses about the user's financial query.
 Each hypothesis should be specific and testable with data from knowledge base or market data.
@@ -168,16 +234,13 @@ Format as JSON array:
     ])
     
     try:
-        # Generate hypotheses
         messages = hypothesis_prompt.format_messages(query=user_query)
         response = llm.invoke(messages)
         
-        # Parse hypotheses (simplified)
         parsed = _load_json_from_text(response.content)
         if isinstance(parsed, list):
             hypotheses = parsed
         else:
-            # Fallback: create simple hypothesis
             hypotheses = [{
                 "hypothesis": f"User needs information about: {user_query}",
                 "needs_vector_db": True,
@@ -186,7 +249,6 @@ Format as JSON array:
         
         state["hypotheses"] = hypotheses
         
-        # Step 2: Fetch user profile if needed
         if state["needs_user_profile"] and not state.get("user_profile"):
             profile_result = user_vault_tool._run(
                 "get_profile",
@@ -201,14 +263,11 @@ Format as JSON array:
                     "output": profile_result
                 })
         elif state.get("user_profile"):
-            # Profile already present (e.g., from UI)
             state["needs_user_profile"] = False
         
-        # Step 3: Retrieve from vector DB
         research_results = []
         for hypothesis in hypotheses:
             if hypothesis.get("needs_vector_db", True):
-                # Search vector DB
                 search_query = hypothesis.get("hypothesis", user_query)
                 db_result = vector_db_tool._run(search_query, k=3)
                 
@@ -228,7 +287,6 @@ Format as JSON array:
                         "results_count": len(db_result["results"])
                     })
         
-        # Step 3b: Search user's personal document index
         user_doc_results = []
         try:
             user_embedder = UserEmbedder()
@@ -252,10 +310,8 @@ Format as JSON array:
         state["user_doc_results"] = user_doc_results
         state["research_results"] = research_results
 
-        # Step 4: Fetch market data
         market_data = {}
 
-        # Always check for specific market data types
         if "gold" in user_query.lower():
             gold_data = search_tool._run("gold_rate")
             if gold_data.get("success"):
@@ -265,7 +321,6 @@ Format as JSON array:
             if fd_data.get("success"):
                 market_data["fd"] = fd_data
 
-        # Always do a web search — use LLM to extract a clean search query
         if not market_data:
             try:
                 extract_prompt = ChatPromptTemplate.from_messages([
@@ -284,7 +339,6 @@ Format as JSON array:
 
         state["market_data"] = market_data
         
-        # Determine next node
         if state["needs_calculation"]:
             state["next_node"] = "analyst"
         else:
@@ -292,7 +346,10 @@ Format as JSON array:
         
     except Exception as e:
         state["errors"].append(f"Researcher error: {str(e)}")
-        state["next_node"] = "strategist"  # Continue to strategist even on error
+        if state["needs_calculation"]:
+            state["next_node"] = "analyst"
+        else:
+            state["next_node"] = "strategist"  # Continue to strategist even on error
     
     return state
 
@@ -305,10 +362,181 @@ def analyst_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     
     user_query = state["user_query"]
     user_profile = state.get("user_profile", {})
+    user_query_lower = user_query.lower()
     
     math_tool = MathTool()
+
+    def _parse_amount(value: str, suffix: Optional[str] = None) -> int:
+        amount = float(value.replace(",", ""))
+        suffix = suffix or ""
+        if suffix in ("l", "lac", "lakh"):
+            amount *= 100000
+        elif suffix == "k":
+            amount *= 1000
+        return int(amount)
+
+    def _extract_sip_amount(query: str) -> Optional[int]:
+        amount = r"(\d[\d,]*(?:\.\d+)?)\s*(l|lac|lakh|k)?"
+        patterns = [
+            rf"\binvest(?:ing)?\b\D{{0,30}}?{amount}\D{{0,20}}?\bsip\b",
+            rf"{amount}\s*(?:per\s+month|/month|monthly)?\D{{0,20}}?\bsip\b",
+            rf"\bsip\b\s+(?:of|for)\s+{amount}",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, query)
+            if match:
+                return _parse_amount(match.group(1), match.group(2))
+        return None
+
+    def _extract_years(query: str) -> Optional[int]:
+        match = re.search(r"(\d+)\s*(?:years|year|yrs|yr)\b", query)
+        return int(match.group(1)) if match else None
+
+    def _extract_annual_return(query: str) -> Optional[float]:
+        match = re.search(r"(\d+(?:\.\d+)?)\s*%\s*(?:annual\s*)?(?:returns?|return|cagr)", query)
+        if not match:
+            match = re.search(r"(?:annual\s*)?(?:returns?|return|cagr)\s+(?:of\s+)?(\d+(?:\.\d+)?)\s*%", query)
+        return float(match.group(1)) / 100 if match else None
+
+    def _extract_purchase_amount(query: str) -> Optional[int]:
+        amount = r"(\d[\d,]*(?:\.\d+)?)\s*(l|lac|lakh|k)?"
+        patterns = [
+            rf"\b(?:for|costs?|price|priced|worth)\b\D{{0,20}}?{amount}",
+            rf"{amount}\s*(?:rupees?|rs|inr)?\b",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, query)
+            if match:
+                value, suffix = match.group(1), match.group(2)
+                if suffix or float(value.replace(",", "")) >= 1000:
+                    return _parse_amount(value, suffix)
+        return None
+
+    def _deterministic_calculations() -> list[Dict[str, Any]]:
+        calculations = []
+        income = (user_profile.get("income") or {}).get("monthly")
+        expenses = (user_profile.get("expenses") or {}).get("monthly")
+        annual_salary = (user_profile.get("income") or {}).get("annual")
+        monthly_surplus = income - expenses if income and expenses is not None else None
+        existing_investments = user_profile.get("existing_investments") or {}
+
+        if income and expenses is not None and any(word in user_query_lower for word in ["income", "salary", "earn", "expense", "spend", "afford", "buy"]):
+            calculations.append({
+                "description": "Monthly surplus and expense ratio",
+                "code": (
+                    "income = {income}\n"
+                    "expenses = {expenses}\n"
+                    "monthly_surplus = income - expenses\n"
+                    "expense_ratio_percent = (expenses / income) * 100\n"
+                    "result = {\n"
+                    "    'monthly_income': income,\n"
+                    "    'monthly_expenses': expenses,\n"
+                    "    'monthly_surplus': monthly_surplus,\n"
+                    "    'expense_ratio_percent': round(expense_ratio_percent, 2),\n"
+                    "}"
+                ),
+                "variables": {"income": income, "expenses": expenses}
+            })
+
+        purchase_amount = _extract_purchase_amount(user_query_lower)
+        if (
+            purchase_amount
+            and income
+            and expenses is not None
+            and monthly_surplus
+            and any(word in user_query_lower for word in ["afford", "buy", "purchase"])
+        ):
+            calculations.append({
+                "description": "Purchase affordability using monthly surplus",
+                "code": (
+                    "purchase_cost = {purchase_cost}\n"
+                    "income = {income}\n"
+                    "expenses = {expenses}\n"
+                    "monthly_surplus = income - expenses\n"
+                    "months_needed = purchase_cost / monthly_surplus\n"
+                    "result = {\n"
+                    "    'purchase_cost': purchase_cost,\n"
+                    "    'monthly_income': income,\n"
+                    "    'monthly_expenses': expenses,\n"
+                    "    'monthly_surplus': monthly_surplus,\n"
+                    "    'cost_percent_of_monthly_surplus': round((purchase_cost / monthly_surplus) * 100, 2),\n"
+                    "    'months_needed_from_surplus': round(months_needed, 2),\n"
+                    "    'affordable_from_one_month_surplus': purchase_cost <= monthly_surplus,\n"
+                    "}"
+                ),
+                "variables": {
+                    "purchase_cost": purchase_amount,
+                    "income": income,
+                    "expenses": expenses,
+                }
+            })
+
+        is_current_investment_query = (
+            any(word in user_query_lower for word in ["investing", "investment", "invested"])
+            and any(word in user_query_lower for word in ["current", "currently", "right now", "how much"])
+        )
+        investment_values = [
+            value for value in existing_investments.values()
+            if isinstance(value, (int, float)) and value > 0
+        ]
+        if income and investment_values and is_current_investment_query:
+            calculations.append({
+                "description": "Current monthly investment as percentage of monthly income",
+                "code": (
+                    "monthly_income = {monthly_income}\n"
+                    "current_monthly_investment = {current_monthly_investment}\n"
+                    "result = {\n"
+                    "    'monthly_income': monthly_income,\n"
+                    "    'current_monthly_investment': current_monthly_investment,\n"
+                    "    'investment_percent_of_monthly_income': round((current_monthly_investment / monthly_income) * 100, 2),\n"
+                    "}"
+                ),
+                "variables": {
+                    "monthly_income": income,
+                    "current_monthly_investment": sum(investment_values),
+                }
+            })
+
+        sip_amount = _extract_sip_amount(user_query_lower)
+        years = _extract_years(user_query_lower)
+        annual_return = _extract_annual_return(user_query_lower)
+
+        if sip_amount and years and annual_salary and annual_return is not None:
+            calculations.append({
+                "description": "SIP future value as percentage of annual salary",
+                "code": (
+                    "monthly_sip = {monthly_sip}\n"
+                    "years = {years}\n"
+                    "annual_salary = {annual_salary}\n"
+                    "annual_return = {annual_return}\n"
+                    "months = years * 12\n"
+                    "monthly_rate = annual_return / 12\n"
+                    "total_invested = monthly_sip * months\n"
+                    "if monthly_rate == 0:\n"
+                    "    future_value = total_invested\n"
+                    "else:\n"
+                    "    future_value = monthly_sip * (((1 + monthly_rate) ** months - 1) / monthly_rate)\n"
+                    "result = {\n"
+                    "    'monthly_sip': monthly_sip,\n"
+                    "    'years': years,\n"
+                    "    'annual_return_percent': round(annual_return * 100, 2),\n"
+                    "    'annual_salary': annual_salary,\n"
+                    "    'total_invested': round(total_invested, 2),\n"
+                    "    'future_value': round(future_value, 2),\n"
+                    "    'future_value_percent_of_annual_salary': round((future_value / annual_salary) * 100, 2),\n"
+                    "    'total_invested_percent_of_annual_salary': round((total_invested / annual_salary) * 100, 2),\n"
+                    "}"
+                ),
+                "variables": {
+                    "monthly_sip": sip_amount,
+                    "years": years,
+                    "annual_salary": annual_salary,
+                    "annual_return": annual_return,
+                }
+            })
+
+        return calculations
     
-    # Determine what calculations are needed
     calculation_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a financial analyst. Determine what calculations are needed for the user's query.
 Generate Python code to perform the calculations. Use the user profile data if available.
@@ -318,8 +546,9 @@ IMPORTANT RULES:
 2. Use only simple expressions or statements
 3. For EMI: EMI = (P * R * (1+R)**N) / ((1+R)**N - 1) where P=principal, R=monthly_rate, N=tenure_months
 4. For SIP: FV = P * (((1+R)**N - 1) / R) where P=monthly_payment, R=monthly_rate, N=months
-5. Return the result as a number or string
-6. Do NOT use print statements - just calculate and return the value
+5. For affordability: use monthly surplus = income - expenses; do not invent a percentage-of-income rule
+6. Return the result as a number or string
+7. Do NOT use print statements - just calculate and return the value
 
 User Profile: {profile}
 
@@ -337,37 +566,35 @@ Respond with JSON:
     ])
     
     try:
-        # Prepare context
         context = "\n".join([
             r.get("content", "")[:200] for r in state.get("research_results", [])[:3]
         ])
         
         profile_str = str(user_profile) if user_profile else "Not available"
-        
-        messages = calculation_prompt.format_messages(
-            query=user_query,
-            context=context,
-            profile=profile_str
-        )
-        response = llm.invoke(messages)
-        
-        # Parse calculations needed
-        calc_data = _load_json_from_text(response.content)
-        if isinstance(calc_data, dict):
-            calculations = calc_data.get("calculations", [])
-        else:
-            # Fallback: try to extract Python code from response
-            code_blocks = re.findall(r'```python\n(.*?)\n```', response.content, re.DOTALL)
-            if code_blocks:
-                calculations = [{
-                    "description": "Financial calculation",
-                    "code": code_blocks[0],
-                    "variables": {}
-                }]
+
+        calculations = _deterministic_calculations()
+        if not calculations:
+            messages = calculation_prompt.format_messages(
+                query=user_query,
+                context=context,
+                profile=profile_str
+            )
+            response = llm.invoke(messages)
+
+            calc_data = _load_json_from_text(response.content)
+            if isinstance(calc_data, dict):
+                calculations = calc_data.get("calculations", [])
             else:
-                calculations = []
+                code_blocks = re.findall(r'```python\n(.*?)\n```', response.content, re.DOTALL)
+                if code_blocks:
+                    calculations = [{
+                        "description": "Financial calculation",
+                        "code": code_blocks[0],
+                        "variables": {}
+                    }]
+                else:
+                    calculations = []
         
-        # Execute calculations
         calc_results = []
         formulas = []
         
@@ -375,24 +602,26 @@ Respond with JSON:
             code = calc.get("code", "").strip()
             description = calc.get("description", "Financial calculation")
             
-            # Replace variables in code
             variables = calc.get("variables", {})
+            variable_assignments = []
             for var_name, var_value in variables.items():
-                code = code.replace(f"{{{var_name}}}", str(var_value))
+                placeholder = f"{{{var_name}}}"
+                if placeholder not in code and re.fullmatch(r"[A-Za-z_]\w*", str(var_name)):
+                    variable_assignments.append(f"{var_name} = {repr(var_value)}")
+                code = code.replace(placeholder, repr(var_value))
             
-            # Clean up code - remove markdown code blocks if present
             if code.startswith("```python"):
                 code = code.split("```python")[1].split("```")[0].strip()
             elif code.startswith("```"):
                 code = code.split("```")[1].split("```")[0].strip()
             
-            # Ensure code is a valid expression
             if not code.startswith("result =") and not code.startswith("result="):
-                # If it's just an expression, wrap it
                 if "=" not in code:
                     code = f"result = {code}"
+
+            if variable_assignments:
+                code = "\n".join(variable_assignments + [code])
             
-            # Execute calculation
             result = math_tool._run(code, description)
             calc_results.append(result)
             formulas.append(code)
@@ -408,7 +637,6 @@ Respond with JSON:
         state["calculations"] = calc_results
         state["calculation_formulas"] = formulas
         
-        # Route to strategist
         state["next_node"] = "strategist"
         
     except Exception as e:
@@ -428,7 +656,6 @@ def clarifier_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     user_profile = state.get("user_profile") or {}
     intent = state.get("intent") or {}
     
-    # Check what info is available from user documents
     user_doc_results = state.get("user_doc_results", [])
     user_docs_meta = state.get("user_documents", [])
     doc_context = ""
@@ -550,7 +777,6 @@ def evidence_scorer_node(state: FinancialAdvisoryState) -> FinancialAdvisoryStat
         state["evidence_score"] = 0.0
         state["evidence_quality"] = "low"
     else:
-        # Simple heuristic: lower FAISS distance score is better, so invert for quality.
         if scores:
             avg_score = sum(scores) / len(scores)
             evidence_score = max(0.0, min(1.0, 1.0 / (1.0 + avg_score)))
@@ -567,8 +793,10 @@ def evidence_scorer_node(state: FinancialAdvisoryState) -> FinancialAdvisoryStat
         state["evidence_score"] = evidence_score
         state["evidence_quality"] = quality
 
-    # Always go to strategist — let it answer with what it has
-    state["next_node"] = "strategist"
+    if state["needs_calculation"] and not state.get("calculations"):
+        state["next_node"] = "analyst"
+    else:
+        state["next_node"] = "strategist"
     return state
 
 
@@ -588,18 +816,19 @@ def strategist_node(state: FinancialAdvisoryState) -> FinancialAdvisoryState:
     
     user_doc_results = state.get("user_doc_results", [])
 
-    # Synthesis prompt
     synthesis_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a sharp, honest personal financial adviser who knows the user well.
 
 RULES:
 - Be DIRECT. Answer the question first, then explain briefly. No fluff.
-- Use the user's ACTUAL numbers (income, expenses, savings) in your answer. Don't say "consider your budget" — say "you make ₹1.1L and spend ₹30k, so you have ₹80k/month to work with."
+- Use the user's ACTUAL numbers (income, expenses, savings) in your answer. Don't say "consider your budget" - say "you make ₹1.1L and spend ₹30k, so you have ₹80k/month to work with."
 - Give your real OPINION. If something is a bad financial decision, say so clearly and why. If it's fine, say that too.
-- Think practically — compare costs to the user's monthly savings, not in abstract terms.
+- Think practically - compare costs to the user's monthly savings, not in abstract terms.
+- Use the Calculations section for computed results. Never mention internal calculation/tool/pipeline failures to the user.
+- If a required number is missing, ask for that user-facing input plainly instead of saying a calculation was not performed.
 - Keep it SHORT. 3-5 sentences for simple questions. Only go longer if the user asked for a detailed breakdown.
 - Don't add generic disclaimers like "consult a financial advisor" or "this is not financial advice." You ARE the advisor.
-- If you don't have enough info, say what specific info you need — don't give a vague non-answer."""),
+- If you don't have enough info, say what specific info you need - don't give a vague non-answer."""),
         ("human", """User's question: {query}
 
 User Profile:
@@ -621,10 +850,8 @@ Answer directly:""")
     ])
     
     try:
-        # Format inputs
         profile_str = json.dumps(user_profile, indent=2) if user_profile else "Not available"
         
-        # Separate knowledge base results from personal document results
         kb_results = [r for r in research_results if r.get("retrieval_type") != "personal_document"]
         research_str = "\n".join([
             f"- {r.get('content', '')[:300]}..."
@@ -637,9 +864,9 @@ Answer directly:""")
         ]) if user_doc_results else "No personal documents uploaded"
         
         calc_str = "\n".join([
-            f"- {calc.get('description', 'Calculation')}: {calc.get('result', 'N/A')}"
+            _format_calculation_for_context(calc)
             for calc in calculations
-        ]) if calculations else "No calculations performed"
+        ]) if calculations else "No calculation results available"
         
         market_str = json.dumps(market_data, indent=2) if market_data else "No market data"
         
@@ -655,14 +882,12 @@ Answer directly:""")
         response = llm.invoke(messages)
         recommendation = response.content
         
-        # Extract confidence if mentioned
         confidence = 0.7  # Default
         if "high confidence" in recommendation.lower():
             confidence = 0.9
         elif "low confidence" in recommendation.lower():
             confidence = 0.5
         
-        # Check for constraint violations
         constraints_violated = []
         if user_profile:
             income = user_profile.get("income", {}).get("monthly") or 0
@@ -675,7 +900,6 @@ Answer directly:""")
         state["constraints_violated"] = constraints_violated
         state["next_node"] = "end"
         
-        # Log final synthesis
         state["tool_calls"].append({
             "node": "strategist",
             "tool": "synthesis",

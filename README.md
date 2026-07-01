@@ -1,111 +1,212 @@
-# SentinelFinance — AI Personal Financial Adviser
+# SentinelFinance
 
-An AI-powered financial adviser built with LangGraph. Upload your financial documents, ask questions, and get personalized advice based on your actual numbers.
+SentinelFinance is an AI financial adviser built with FastAPI and LangGraph. It
+uses your profile and uploaded documents to answer questions with relevant
+research and calculated results.
+
+## Local setup
+
+### 1. Open the project
+
+Go to the project directory:
+
+    cd /path/to/fin_adviser
 
 
-## Demo
+### 2. Create a Python virtual environment
 
-[![Watch the demo](https://img.youtube.com/vi/Jsm4vG9dK10/0.jpg)](https://youtu.be/Jsm4vG9dK10)
+Create the virtual environment:
 
-A 10-minute walkthrough covering architecture, multi-agent pipeline, and real-time usage.
+    python3 -m venv .venv
 
----
+Activate it:
 
-## Features
+    source .venv/bin/activate
 
-- **Document Upload** — Salary slips, tax returns, expense sheets (PDF, Excel, CSV). AI extracts income, expenses, investments, and tax details automatically.
-- **Agentic RAG** — Retrieves relevant info from your uploaded documents and a financial knowledge base via FAISS.
-- **Web Search** — Real-time product prices, market rates, and financial data via Tavily.
-- **Precise Calculations** — EMI, SIP, tax, ROI computed in a sandboxed Python REPL (not guessed by the LLM).
-- **Direct Opinions** — Uses your actual numbers, gives real financial opinions, not generic advice.
-- **User Auth** — Signup/login with persistent profiles, chat history, and document storage.
+Install project dependencies:
 
-## Architecture
+    pip install -r requirements.txt
 
-Multi-agent pipeline built on LangGraph:
+### 3. Set up MySQL
 
-```
-Query → Router → Researcher (FAISS + Tavily + yfinance)
-              → Analyst (Python Math REPL)
-              → Strategist → Personalized Answer
-```
+Make sure MySQL is installed and running.
 
-## Use Cases
+On macOS with Homebrew:
 
-- Financial planning based on real income and expenses
-- Tax optimization insights
-- Investment decision support
-- Loan and EMI analysis
+    brew install mysql
+    brew services start mysql
 
-## Tech Stack
+Create the project database:
 
-- **Backend**: FastAPI + Jinja2 templates
-- **Database**: MySQL (users, profiles, chat history)
-- **LLM**: Groq (Llama 3.3-70B)
-- **Vector DB**: FAISS (per-user indexes)
-- **Web Search**: Tavily
-- **Document Processing**: LangChain + sentence-transformers
+    mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS sentinel_finance;"
 
-## Setup
+If your MySQL root user does not have a password, press Enter when prompted.
+If you use a different MySQL username or password, put those values in `.env`.
 
-```bash
-# 1. Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
 
-# 2. Install dependencies
-pip install -r requirements.txt
+### 4. Create the `.env` file
 
-# 3. Configure .env
-cp .env.example .env
-# Edit .env with your keys:
-#   GROQ_API_KEY=...
-#   TAVILY_API_KEY=...
-#   MYSQL_USER=root
-#   MYSQL_PASSWORD=...
-#   MYSQL_HOST=localhost
-#   MYSQL_DB=sentinel_finance
+If `.env` does not exist, copy the example file:
 
-# 4. Create MySQL database
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS sentinel_finance;"
+    cp .env.example .env
 
-# 5. Ingest knowledge base (one-time)
-python ingest_documents.py
+Then edit `.env`.
 
-# 6. Run the app
-uvicorn main:app --reload
-```
+Common settings:
 
-Open `http://localhost:8000`
+    VECTOR_DB_PATH=./data/chroma_db
+    USER_VAULT_PATH=./data/user_profiles
+    DEFAULT_USER_ID=default_user
+    MAX_ITERATIONS=10
 
-## Project Structure
+    MYSQL_USER=root
+    MYSQL_PASSWORD=mysql
+    MYSQL_HOST=localhost
+    MYSQL_DB=sentinel_finance
 
-```
-fin_adviser/
-├── main.py                 # FastAPI entry point
-├── ingest_documents.py     # One-time knowledge base ingestion
-├── web/
-│   ├── routes.py           # Page routes + form handlers
-│   ├── auth.py             # Session cookies
-│   ├── dependencies.py     # Auth middleware
-│   ├── static/             # CSS
-│   └── templates/          # Jinja2 HTML (home, login, signup, dashboard, profile)
-├── db/
-│   ├── database.py         # SQLAlchemy + MySQL
-│   ├── models.py           # User, Profile, ChatMessage, Document
-│   └── crud.py             # All DB operations
-├── src/
-│   ├── graph.py            # LangGraph workflow
-│   ├── nodes.py            # Router, Researcher, Analyst, Strategist
-│   ├── state.py            # State management
-│   ├── config.py           # Configuration
-│   ├── tools/              # SearchTool, MathTool, VectorDBTool, UserVaultTool, UserDocumentTool
-│   └── ingestion/          # DocumentParser, PdfParser, UserEmbedder, LLMExtractor
-├── data/
-│   └── documents/          # Knowledge base (tax, investments, loans)
-└── requirements.txt
-```
+    SECRET_KEY=change-this-to-any-long-random-string
 
-## License
+Optional web search:
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+    TAVILY_API_KEY=your_tavily_key
+
+
+### 5. Choose an LLM provider
+
+The app supports:
+
+- A local model through Ollama
+- A hosted model through the Groq API
+
+The `LLM_PROVIDER` setting controls which one is active.
+
+
+#### Option A: Ollama
+
+Install Ollama from:
+
+    https://ollama.com/download
+
+Start Ollama:
+
+    ollama serve
+
+In another terminal, download or confirm your model:
+
+    ollama pull gemma3:4b
+    ollama list
+
+You can use another Ollama model if it is a better fit for your computer.
+
+Put this in `.env`:
+
+    LLM_PROVIDER=ollama
+    OLLAMA_MODEL=gemma3:4b
+    OLLAMA_BASE_URL=http://localhost:11434
+
+You can leave `GROQ_API_KEY` in `.env`; it will be ignored while
+`LLM_PROVIDER=ollama`.
+
+
+#### Option B: Groq
+
+Put this in `.env`:
+
+    LLM_PROVIDER=groq
+    GROQ_API_KEY=your_groq_api_key
+    GROQ_MODEL=llama-3.3-70b-versatile
+
+
+### 6. Ingest the knowledge base
+
+Run this once after installing dependencies:
+
+    python ingest_documents.py
+
+This loads the documents in `data/documents` into the vector database.
+
+
+### 7. Run the app
+
+Make sure the virtual environment is active:
+
+    source .venv/bin/activate
+
+Start the FastAPI server:
+
+    uvicorn main:app --reload
+
+Open the app in your browser:
+
+    http://localhost:8000
+
+
+### 8. Switch providers
+
+To use Ollama:
+
+    LLM_PROVIDER=ollama
+    OLLAMA_MODEL=gemma3:4b
+    OLLAMA_BASE_URL=http://localhost:11434
+
+To use Groq:
+
+    LLM_PROVIDER=groq
+    GROQ_API_KEY=your_groq_api_key
+    GROQ_MODEL=llama-3.3-70b-versatile
+
+After changing `.env`, restart the FastAPI server.
+
+
+### 9. Quick health checks
+
+Check MySQL:
+
+    mysql -u root -p -e "SHOW DATABASES;"
+
+Check Ollama:
+
+    curl http://localhost:11434/api/tags
+
+Check installed Python packages:
+
+    python -m compileall src
+
+## Troubleshooting
+
+### Ollama connection error
+
+Fix: Start Ollama first:
+
+    ollama serve
+
+Then restart the app.
+
+
+### Model not found
+
+Fix: Pull the model:
+
+    ollama pull gemma3:4b
+
+
+### MySQL login fails
+
+Fix: Check these `.env` values:
+
+    MYSQL_USER=
+    MYSQL_PASSWORD=
+    MYSQL_HOST=
+    MYSQL_DB=
+
+Then confirm the database exists:
+
+    mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS sentinel_finance;"
+
+
+### Missing Python module
+
+Fix: Activate the virtual environment and reinstall dependencies:
+
+    source .venv/bin/activate
+    pip install -r requirements.txt

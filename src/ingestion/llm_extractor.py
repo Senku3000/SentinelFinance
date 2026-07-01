@@ -7,12 +7,10 @@ into the user's profile.
 
 import json
 from typing import Dict, Any, Optional
-from langchain_groq import ChatGroq
 
-from ..config import Config
+from ..llm import create_chat_llm
 
 
-# Max characters to send per extraction call (~4000 tokens)
 MAX_TEXT_LENGTH = 12000
 
 EXTRACTION_PROMPT = """You are a financial document analyzer. Extract structured financial data from the following document text.
@@ -80,11 +78,7 @@ class LLMExtractor:
     """Extracts structured financial data from document text using an LLM."""
 
     def __init__(self):
-        self.llm = ChatGroq(
-            model=Config.GROQ_MODEL,
-            groq_api_key=Config.GROQ_API_KEY,
-            temperature=0.0,  # deterministic for extraction
-        )
+        self.llm = create_chat_llm(temperature=0.0)  # deterministic for extraction
 
     def extract(self, document_text: str) -> Dict[str, Any]:
         """Extract structured financial data from document text.
@@ -98,10 +92,9 @@ class LLMExtractor:
         if not document_text.strip():
             return {"error": "Empty document text"}
 
-        # Truncate if too long
         text = document_text[:MAX_TEXT_LENGTH]
         if len(document_text) > MAX_TEXT_LENGTH:
-            text += "\n\n[Document truncated — additional content not shown]"
+            text += "\n\n[Document truncated - additional content not shown]"
 
         prompt = EXTRACTION_PROMPT.format(document_text=text)
 
@@ -109,7 +102,6 @@ class LLMExtractor:
             response = self.llm.invoke(prompt)
             content = response.content.strip()
 
-            # Parse JSON from response
             extracted = self._parse_json(content)
             if extracted is None:
                 return {"error": "Failed to parse LLM response", "raw": content}
@@ -121,7 +113,6 @@ class LLMExtractor:
 
     def _parse_json(self, text: str) -> Optional[Dict[str, Any]]:
         """Parse JSON from LLM response, handling markdown code blocks."""
-        # Strip markdown code fences if present
         if "```" in text:
             lines = text.split("\n")
             json_lines = []
@@ -137,7 +128,6 @@ class LLMExtractor:
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            # Try to find JSON object in text
             start = text.find("{")
             end = text.rfind("}") + 1
             if start >= 0 and end > start:
@@ -153,7 +143,7 @@ def merge_extracted_data(
 ) -> Dict[str, Any]:
     """Merge LLM-extracted data into an existing user profile.
 
-    Document-extracted data takes precedence — if the LLM confidently
+    Document-extracted data takes precedence - if the LLM confidently
     extracted a value from a real document, it should overwrite defaults
     and existing values.
 
@@ -167,7 +157,6 @@ def merge_extracted_data(
     if "error" in extracted:
         return existing_profile
 
-    # Remove non-profile fields
     skip_keys = {"error", "raw", "document_summary"}
 
     for key, value in extracted.items():
@@ -181,7 +170,6 @@ def merge_extracted_data(
         existing_val = existing_profile[key]
 
         if isinstance(value, dict) and isinstance(existing_val, dict):
-            # Merge nested dicts — extracted non-null values overwrite
             for sub_key, sub_val in value.items():
                 if sub_val is None:
                     continue

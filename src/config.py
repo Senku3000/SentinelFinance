@@ -5,58 +5,53 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 
 class Config:
     """Centralized configuration management"""
-    
-    # Groq API (using Llama 3.1 70B)
+
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "groq").lower()
+
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     
-    # Vector DB Settings (FAISS)
     VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", os.getenv("CHROMA_DB_PATH", "./data/chroma_db"))
-    # Legacy/unused in FAISS; kept for backward compatibility
     CHROMA_COLLECTION_NAME: str = os.getenv("CHROMA_COLLECTION_NAME", "financial_knowledge")
     
-    # Market Data APIs
     ALPHA_VANTAGE_API_KEY: Optional[str] = os.getenv("ALPHA_VANTAGE_API_KEY")
     YAHOO_FINANCE_ENABLED: bool = os.getenv("YAHOO_FINANCE_ENABLED", "true").lower() == "true"
     
-    # User Vault Settings
     USER_VAULT_PATH: str = os.getenv("USER_VAULT_PATH", "./data/user_profiles")
     DEFAULT_USER_ID: str = os.getenv("DEFAULT_USER_ID", "default_user")
     
-    # Application Settings
     MAX_ITERATIONS: int = int(os.getenv("MAX_ITERATIONS", "10"))
     DEBUG_MODE: bool = os.getenv("DEBUG_MODE", "false").lower() == "true"
     
-    # Document Ingestion
     DOCUMENTS_PATH: str = os.getenv("DOCUMENTS_PATH", "./data/documents")
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     
-    # Cache Settings
     SEARCH_CACHE_TTL: int = int(os.getenv("SEARCH_CACHE_TTL", "3600"))  # 1 hour
 
-    # Web Search
     TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
 
-    # MySQL
     MYSQL_USER: str = os.getenv("MYSQL_USER", "root")
     MYSQL_PASSWORD: str = os.getenv("MYSQL_PASSWORD", "")
     MYSQL_HOST: str = os.getenv("MYSQL_HOST", "localhost")
     MYSQL_DB: str = os.getenv("MYSQL_DB", "sentinel_finance")
 
-    # Web
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production")
     SESSION_MAX_AGE: int = int(os.getenv("SESSION_MAX_AGE", "86400"))
     
     @classmethod
     def validate(cls) -> bool:
         """Validate that required configuration is present"""
-        if not cls.GROQ_API_KEY:
+        if cls.LLM_PROVIDER not in {"groq", "ollama"}:
+            raise ValueError("LLM_PROVIDER must be either 'groq' or 'ollama'")
+        if cls.LLM_PROVIDER == "groq" and not cls.GROQ_API_KEY:
             raise ValueError("GROQ_API_KEY is required. Please set it in .env file")
         return True
     
@@ -73,7 +68,6 @@ class Config:
         user_dir = cls.get_user_dir(user_id)
         new_path = user_dir / "profile.json"
 
-        # Migration: move old flat file into subdirectory
         old_path = Path(cls.USER_VAULT_PATH) / f"{user_id}.json"
         if old_path.exists() and not new_path.exists():
             old_path.rename(new_path)

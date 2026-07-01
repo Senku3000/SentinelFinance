@@ -79,19 +79,16 @@ class UserEmbedder:
         """
         file_path = Path(file_path)
 
-        # Copy file to user's documents directory
         docs_dir = Config.get_user_documents_path(user_id)
         dest_path = docs_dir / file_path.name
         if file_path != dest_path:
             shutil.copy2(file_path, dest_path)
 
-        # Parse into chunks
         chunks = self.parser.parse_file(dest_path)
         if not chunks:
             print(f"No chunks extracted from {file_path.name}")
             return 0
 
-        # Convert to LangChain Documents with user metadata
         documents = [
             Document(
                 page_content=chunk.content,
@@ -104,7 +101,6 @@ class UserEmbedder:
             for chunk in chunks
         ]
 
-        # Add to user's FAISS index
         vectorstore = self._load_user_vectorstore(user_id)
         if vectorstore is None:
             vectorstore = FAISS.from_documents(documents, self.embeddings)
@@ -113,10 +109,8 @@ class UserEmbedder:
 
         self._save_user_vectorstore(user_id, vectorstore)
 
-        # Update manifest
         manifest = self._load_manifest(user_id)
 
-        # Remove old entry for same filename if re-uploading
         manifest = [m for m in manifest if m["filename"] != file_path.name]
 
         manifest.append({
@@ -179,22 +173,18 @@ class UserEmbedder:
         docs_dir = Config.get_user_documents_path(user_id)
         file_path = docs_dir / filename
 
-        # Remove the file
         if file_path.exists():
             file_path.unlink()
 
-        # Remove from manifest
         manifest = self._load_manifest(user_id)
         manifest = [m for m in manifest if m["filename"] != filename]
         self._save_manifest(user_id, manifest)
 
-        # Delete old FAISS index
         faiss_path = Config.get_user_faiss_path(user_id)
         if faiss_path.exists():
             shutil.rmtree(faiss_path)
             faiss_path.mkdir(parents=True, exist_ok=True)
 
-        # Rebuild from remaining documents
         remaining_files = list(docs_dir.iterdir())
         for f in remaining_files:
             if DocumentParser.is_supported(f):

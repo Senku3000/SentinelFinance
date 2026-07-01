@@ -43,7 +43,7 @@ class DocumentParser:
             return []
 
     def _parse_excel(self, file_path: Path) -> List[DocumentChunk]:
-        """Parse Excel file — convert each sheet's rows to text lines, then chunk."""
+        """Parse Excel file - convert each sheet's rows to text lines, then chunk."""
         try:
             xls = pd.ExcelFile(file_path, engine="openpyxl")
         except Exception as e:
@@ -70,7 +70,7 @@ class DocumentParser:
         return self._pdf_parser._split_text(full_text, file_path)
 
     def _parse_csv(self, file_path: Path) -> List[DocumentChunk]:
-        """Parse CSV file — convert rows to text lines, then chunk."""
+        """Parse CSV file - convert rows to text lines, then chunk."""
         try:
             df = pd.read_csv(file_path)
             df = df.dropna(how="all")
@@ -96,7 +96,6 @@ class DocumentParser:
         if sheet_name:
             lines.append(f"--- Sheet: {sheet_name} ---")
 
-        # Add header summary
         lines.append(f"Columns: {', '.join(columns)}")
         lines.append("")
 

@@ -38,12 +38,10 @@ class VectorDBTool(BaseTool):
     def _initialize_vectorstore(self):
         """Initialize FAISS vectorstore"""
         try:
-            # Initialize embeddings
             self.embeddings = HuggingFaceEmbeddings(
                 model_name=Config.EMBEDDING_MODEL
             )
             
-            # Try to load existing FAISS index
             faiss_path = Path(Config.VECTOR_DB_PATH) / "faiss_index"
             
             if faiss_path.exists():
@@ -92,17 +90,13 @@ class VectorDBTool(BaseTool):
             }
         
         try:
-            # Query rewriting could be done here with LLM
-            # For now, use query as-is
             search_query = query
             
-            # Perform similarity search
             results = self.vectorstore.similarity_search_with_score(
                 search_query,
                 k=k
             )
             
-            # Format results
             formatted_results = []
             scores = []
             
@@ -135,8 +129,6 @@ class VectorDBTool(BaseTool):
         Rewrite query for better retrieval
         This could use an LLM to expand/refine the query
         """
-        # Simple implementation - could be enhanced with LLM
-        # For now, return as-is
         return original_query
     
     async def _arun(

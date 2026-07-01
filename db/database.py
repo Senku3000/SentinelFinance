@@ -15,5 +15,5 @@ Base = declarative_base()
 
 def init_db():
     """Create all tables."""
-    from . import models  # noqa: F401 — registers models with Base
+    from . import models  # noqa: F401 - registers models with Base
     Base.metadata.create_all(bind=engine)

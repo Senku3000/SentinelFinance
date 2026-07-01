@@ -12,7 +12,6 @@ if __name__ == "__main__":
     
     embedder = DocumentEmbedder()
     
-    # Ingest all documents
     num_chunks = embedder.ingest_documents()
     
     print(f"\nIngestion complete! Total chunks: {num_chunks}")

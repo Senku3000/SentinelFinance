@@ -1,4 +1,4 @@
-"""FastAPI routes — pages and form handlers."""
+"""FastAPI routes - pages and form handlers."""
 
 import re
 from pathlib import Path
@@ -26,37 +26,57 @@ def _extract_profile_from_text(profile: dict, text: str) -> tuple[dict, bool]:
     updated = False
     text_lower = text.lower()
 
-    # Match patterns like: income 1L, salary is 1.5 lakh, earn around 100000, expenses around 30k
-    # Allow filler words (is, around, about, of, roughly) between keyword and number
-    filler = r"[\s\w]*?"  # matches spaces and filler words (non-greedy)
-    amount = r"(\d+(?:\.\d+)?)\s*(l|lac|lakh|k)?"
+    amount = r"(?:₹|rs\.?|inr)?\s*(?P<value>\d[\d,]*(?:\.\d+)?)\s*(?P<suffix>l|lac|lakh|k)?"
+    joiner = r"(?:\s+(?:is|are|am|around|about|roughly|approx|approximately|of|as))*\s+"
+    income_words = r"income|salary|earn|earning|make|making"
+    expense_words = r"expense|expenses|spend|spending|expenditure|cost|costs"
 
-    inc_match = re.search(
-        r"(?:income|salary|earn|earning|make)" + filler + amount, text_lower
-    )
-    exp_match = re.search(
-        r"(?:expense|expenses|spend|spending|expenditure)" + filler + amount, text_lower
-    )
+    income_patterns = [
+        rf"\b(?:{income_words})\b{joiner}{amount}",
+    ]
+    expense_patterns = [
+        rf"\b(?:{expense_words})\b{joiner}{amount}",
+        rf"{amount}\s*(?:per\s+month|/month|monthly)?\s+\b(?:{expense_words})\b",
+    ]
 
     def _parse_amount(match):
-        val = float(match.group(1))
-        suffix = match.group(2) or ""
+        val = float(match.group("value").replace(",", ""))
+        suffix = match.group("suffix") or ""
         if suffix in ("l", "lac", "lakh"):
             val *= 100000
         elif suffix == "k":
             val *= 1000
         return int(val)
 
+    def _is_annual_income(match):
+        window = text_lower[match.end():match.end() + 30]
+        return bool(re.search(r"\b(?:per\s+year|per\s+annum|annually|annual|yearly|pa|p\.a\.)\b", window))
+
+    def _first_match(patterns):
+        for pattern in patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                return match
+        return None
+
+    inc_match = _first_match(income_patterns)
+    exp_match = _first_match(expense_patterns)
+
     if inc_match:
-        profile.setdefault("income", {})["monthly"] = _parse_amount(inc_match)
-        profile["income"]["annual"] = profile["income"]["monthly"] * 12
+        income_amount = _parse_amount(inc_match)
+        profile.setdefault("income", {})
+        if _is_annual_income(inc_match):
+            profile["income"]["annual"] = income_amount
+            profile["income"]["monthly"] = income_amount // 12
+        else:
+            profile["income"]["monthly"] = income_amount
+            profile["income"]["annual"] = income_amount * 12
         updated = True
 
     if exp_match:
         profile.setdefault("expenses", {})["monthly"] = _parse_amount(exp_match)
         updated = True
 
-    # Risk tolerance — match flexible phrasing
     if re.search(r"risk.?tak|aggressive|high.{0,15}risk|risk.{0,15}high", text_lower):
         profile["risk_tolerance"] = "aggressive"
         updated = True
@@ -70,7 +90,6 @@ def _extract_profile_from_text(profile: dict, text: str) -> tuple[dict, bool]:
     return profile, updated
 
 
-# ── Auth Pages ──
 
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
@@ -125,7 +144,6 @@ def logout():
     return response
 
 
-# ── Root ──
 
 @router.get("/", response_class=HTMLResponse)
 def root(request: Request):
@@ -135,7 +153,6 @@ def root(request: Request):
     return templates.TemplateResponse(request, "home.html", {})
 
 
-# ── Dashboard ──
 
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(
@@ -159,7 +176,6 @@ def dashboard(
     })
 
 
-# ── Chat ──
 
 @router.post("/chat")
 def chat_submit(
@@ -175,15 +191,12 @@ def chat_submit(
     uid_str = crud.user_id_str(user.id)
     profile = crud.get_profile(db, user.id)
 
-    # Extract income/expenses from chat text and update profile if found
     profile, updated = _extract_profile_from_text(profile, query)
     if updated:
         crud.update_profile(db, user.id, profile)
 
-    # Save user message
     crud.add_chat_message(db, user.id, "user", query)
 
-    # Run the AI pipeline with the user's profile
     result = run_query(query, user_id=uid_str, user_profile=profile)
 
     recommendation = result.get("recommendation", "No recommendation generated")
@@ -191,15 +204,14 @@ def chat_submit(
         "confidence": result.get("confidence", 0.5),
         "calculations": result.get("calculations", []),
         "tool_calls": result.get("tool_calls", []),
+        "errors": result.get("errors", []),
     }
 
-    # Save assistant message
     crud.add_chat_message(db, user.id, "assistant", recommendation, metadata)
 
     return RedirectResponse("/dashboard", status_code=303)
 
 
-# ── Profile ──
 
 @router.get("/profile", response_class=HTMLResponse)
 def profile_page(
@@ -234,7 +246,6 @@ def profile_submit(
 
     profile = crud.get_profile(db, user.id)
 
-    # Update fields (only if provided)
     if monthly_income.strip():
         val = int(float(monthly_income))
         profile["income"]["monthly"] = val
@@ -250,7 +261,6 @@ def profile_submit(
     return RedirectResponse("/dashboard", status_code=303)
 
 
-# ── Document Upload ──
 
 @router.post("/upload")
 def upload_document(
@@ -267,18 +277,14 @@ def upload_document(
     docs_dir = Config.get_user_documents_path(uid_str)
     dest_path = docs_dir / file.filename
 
-    # Save file to disk
     with open(dest_path, "wb") as f:
         f.write(file.file.read())
 
-    # Parse & embed into user's FAISS index
     embedder = UserEmbedder()
     num_chunks = embedder.ingest_user_document(uid_str, dest_path)
 
-    # Record in DB
     crud.add_uploaded_document(db, user.id, file.filename, Path(file.filename).suffix, num_chunks)
 
-    # Extract structured data with LLM and update profile
     if num_chunks > 0:
         try:
             parser = DocumentParser()
@@ -318,7 +324,6 @@ def delete_document(
     return RedirectResponse("/dashboard", status_code=303)
 
 
-# ── Clear Chat ──
 
 @router.post("/chat/clear")
 def clear_chat(

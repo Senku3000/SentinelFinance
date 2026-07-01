@@ -11,7 +11,7 @@ from src.config import Config
 
 
 def _empty_profile(user_id_str: str) -> Dict[str, Any]:
-    """Empty profile for new users — no default values."""
+    """Empty profile for new users - no default values."""
     now = datetime.now(timezone.utc).isoformat()
     return {
         "user_id": user_id_str,
@@ -39,7 +39,6 @@ def sync_profile_to_disk(uid_str: str, profile_dict: Dict[str, Any]):
         json.dump(profile_dict, f, indent=2, ensure_ascii=False)
 
 
-# ── Users ──
 
 def create_user(db: Session, email: str, password: str) -> User:
     """Create a new user with an empty profile."""
@@ -54,7 +53,6 @@ def create_user(db: Session, email: str, password: str) -> User:
     db.commit()
     db.refresh(user)
 
-    # Create user directories + sync profile to disk
     Config.get_user_vault_file(uid_str)  # creates dirs via mkdir
     sync_profile_to_disk(uid_str, profile)
 
@@ -69,7 +67,6 @@ def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
     return db.query(User).filter(User.id == user_id).first()
 
 
-# ── Profiles ──
 
 def get_profile(db: Session, user_id: int) -> Dict[str, Any]:
     """Get user profile as dict."""
@@ -92,7 +89,6 @@ def update_profile(db: Session, user_id: int, profile_dict: Dict[str, Any]):
     sync_profile_to_disk(user_id_str(user_id), profile_dict)
 
 
-# ── Chat Messages ──
 
 def add_chat_message(
     db: Session, user_id: int, role: str, content: str, metadata: Optional[Dict] = None
@@ -131,7 +127,6 @@ def clear_chat_history(db: Session, user_id: int):
     db.commit()
 
 
-# ── Documents ──
 
 def add_uploaded_document(
     db: Session, user_id: int, filename: str, file_type: str, num_chunks: int = 0

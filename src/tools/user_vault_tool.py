@@ -47,7 +47,6 @@ class UserVaultTool(BaseTool):
         vault_file = self._get_vault_file(user_id)
         
         if not vault_file.exists():
-            # Return default profile
             return self._get_default_profile(user_id)
         
         try:
@@ -75,7 +74,7 @@ class UserVaultTool(BaseTool):
             return False
     
     def _get_default_profile(self, user_id: str) -> Dict[str, Any]:
-        """Get empty user profile — no hardcoded defaults."""
+        """Get empty user profile - no hardcoded defaults."""
         return {
             "user_id": user_id,
             "income": {"monthly": None, "annual": None, "source": None},
@@ -123,7 +122,6 @@ class UserVaultTool(BaseTool):
                 
                 profile = self._load_profile(user_id)
                 
-                # Update profile fields
                 for key, value in data.items():
                     if isinstance(value, dict) and key in profile and isinstance(profile[key], dict):
                         profile[key].update(value)

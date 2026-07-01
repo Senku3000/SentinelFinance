@@ -3,11 +3,7 @@
 
 {% block content %}
 <div class="flex h-[calc(100vh-60px)]">
-
-    <!-- Sidebar -->
     <aside class="w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto flex-shrink-0">
-
-        <!-- Profile Summary -->
         <h3 class="text-sm font-semibold text-gray-400 uppercase mb-3">Your Profile</h3>
         <div class="bg-gray-700/50 rounded p-3 mb-4 text-sm space-y-1">
             <div class="flex justify-between">
@@ -24,8 +20,6 @@
             </div>
         </div>
         <a href="/profile" class="block text-center text-sm text-emerald-400 hover:underline mb-6">Edit Profile</a>
-
-        <!-- Documents -->
         <h3 class="text-sm font-semibold text-gray-400 uppercase mb-3">Documents</h3>
         {% if documents %}
         <ul class="space-y-2 mb-4">
@@ -41,8 +35,6 @@
         {% else %}
         <p class="text-gray-500 text-sm mb-4">No documents uploaded yet.</p>
         {% endif %}
-
-        <!-- Upload Form -->
         <form method="POST" action="/upload" enctype="multipart/form-data" class="mt-3">
             <label class="block text-xs text-gray-400 mb-1">Upload a document</label>
             <input type="file" name="file"
@@ -56,11 +48,7 @@
         </form>
 
     </aside>
-
-    <!-- Main Chat Area -->
     <div class="flex-1 flex flex-col">
-
-        <!-- Messages -->
         <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
             {% if not messages %}
             <div class="text-center text-gray-500 mt-20">
@@ -78,7 +66,6 @@
                     <div class="text-sm whitespace-pre-wrap">{{ msg.content }}</div>
 
                     {% if msg.role == 'assistant' and msg.metadata %}
-                    <!-- Tool badges -->
                     {% if msg.metadata.tool_calls %}
                     <div class="flex flex-wrap gap-1.5 mt-2">
                         {% set tools_used = [] %}
@@ -110,8 +97,6 @@
                         {% endfor %}
                     </div>
                     {% endif %}
-
-                    <!-- Calculations detail -->
                     {% if msg.metadata.calculations %}
                     {% for calc in msg.metadata.calculations %}
                     {% if calc.success %}
@@ -134,8 +119,6 @@
             </div>
             {% endfor %}
         </div>
-
-        <!-- Chat Input -->
         <div class="border-t border-gray-700 p-4 bg-gray-800">
             <form method="POST" action="/chat" id="chat-form" class="flex gap-3">
                 <input type="text" name="query" placeholder="Ask a financial question..."
@@ -158,11 +141,9 @@
 
 {% block scripts %}
 <script>
-// Auto-scroll to bottom
 const chatDiv = document.getElementById('chat-messages');
 chatDiv.scrollTop = chatDiv.scrollHeight;
 
-// Show loading state on submit
 document.getElementById('chat-form').addEventListener('submit', function() {
     const btn = document.getElementById('send-btn');
     btn.textContent = 'Thinking...';

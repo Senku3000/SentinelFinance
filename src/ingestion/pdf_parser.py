@@ -43,17 +43,14 @@ class PDFParser:
             with open(file_path, 'rb') as file:
                 pdf_reader = pypdf.PdfReader(file)
                 
-                # Extract text from all pages
                 full_text = ""
                 for page in pdf_reader.pages:
                     full_text += page.extract_text() + "\n"
                 
-                # Split into chunks
                 chunks = self._split_text(full_text, file_path)
                 
         except Exception as e:
             print(f"Error parsing PDF {file_path}: {e}")
-            # Return empty chunks on error
         
         return chunks
     
@@ -91,17 +88,13 @@ class PDFParser:
         """
         chunks = []
         
-        # Simple chunking by character count
-        # In production, you might want sentence-aware chunking
         start = 0
         chunk_index = 0
         
         while start < len(text):
             end = start + self.chunk_size
             
-            # Try to break at sentence boundary if possible
             if end < len(text):
-                # Look for sentence endings near the chunk boundary
                 for i in range(end, max(start, end - 100), -1):
                     if text[i] in '.!?\n':
                         end = i + 1
@@ -122,7 +115,6 @@ class PDFParser:
                 ))
                 chunk_index += 1
             
-            # Move start position with overlap
             start = end - self.chunk_overlap
             if start >= len(text):
                 break
